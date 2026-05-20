@@ -144,3 +144,38 @@ func (s *EventService) AdminCreate(input CreateEventInput) (*model.Event, error)
 	}
 	return e, nil
 }
+
+func (s *EventService) AdminGet(id uint64) (*model.Event, error) {
+	e, err := s.eventRepo.FindByID(id)
+	if err != nil || e == nil {
+		return nil, err
+	}
+	e.Tickets, _ = s.eventRepo.ListTickets(e.ID)
+	return e, nil
+}
+
+func (s *EventService) AdminUpdate(id uint64, input CreateEventInput) (*model.Event, error) {
+	e, err := s.eventRepo.FindByID(id)
+	if err != nil || e == nil {
+		return nil, errors.New("活動不存在")
+	}
+	e.Title       = input.Title
+	e.Category    = input.Category
+	e.CoverImage  = input.CoverImage
+	e.Description = input.Description
+	e.EventDate   = input.EventDate
+	e.Location    = input.Location
+	e.MaxQuota    = input.MaxQuota
+	if input.RegStartAt != nil {
+		t, err := time.Parse("2006-01-02 15:04:05", *input.RegStartAt)
+		if err == nil { e.RegStartAt = &t }
+	}
+	if input.RegEndAt != nil {
+		t, err := time.Parse("2006-01-02 15:04:05", *input.RegEndAt)
+		if err == nil { e.RegEndAt = &t }
+	}
+	if err := s.eventRepo.Update(e); err != nil {
+		return nil, err
+	}
+	return e, nil
+}

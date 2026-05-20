@@ -60,6 +60,7 @@ CREATE TABLE products (
     slug         VARCHAR(255) NOT NULL UNIQUE,
     description  TEXT,
     cover_image  VARCHAR(500),
+    images       JSON,
     price        DECIMAL(10,2) NOT NULL,
     sale_price   DECIMAL(10,2),
     stock        INT DEFAULT 0,

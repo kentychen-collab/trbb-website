@@ -17,7 +17,7 @@ func NewEventAdminHandler(eventSvc *service.EventService) *EventAdminHandler {
 }
 
 func (h *EventAdminHandler) List(c *gin.Context) {
-	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	page, _  := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 	if page < 1 { page = 1 }
 	list, total, err := h.eventSvc.AdminList(page, limit)
@@ -26,6 +26,16 @@ func (h *EventAdminHandler) List(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": list, "total": total})
+}
+
+func (h *EventAdminHandler) Get(c *gin.Context) {
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	e, err := h.eventSvc.AdminGet(id)
+	if err != nil || e == nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "活動不存在"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": e})
 }
 
 func (h *EventAdminHandler) Create(c *gin.Context) {
@@ -39,10 +49,20 @@ func (h *EventAdminHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{"data": e})
+	c.JSON(http.StatusCreated, gin.H{"data": e, "message": "活動已建立"})
 }
 
 func (h *EventAdminHandler) Update(c *gin.Context) {
-	// TODO: implement update
-	c.JSON(http.StatusOK, gin.H{"message": "TODO: update event"})
+	id, _ := strconv.ParseUint(c.Param("id"), 10, 64)
+	var input service.CreateEventInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	e, err := h.eventSvc.AdminUpdate(id, input)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": e, "message": "活動已更新"})
 }

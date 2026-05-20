@@ -26,6 +26,10 @@ type Config struct {
 	MinioSecretKey string
 	MinioBucket    string
 
+	// 圖片上傳（本地目錄）
+	UploadDir       string // 容器內路徑，如 /var/www/uploads
+	UploadURLPrefix string // 對外 URL 前綴，如 /uploads
+
 	FrontendURL string
 	AdminURL    string
 
@@ -65,6 +69,9 @@ func Load() *Config {
 		MinioAccessKey: getEnv("MINIO_ACCESS_KEY", "minioadmin"),
 		MinioSecretKey: getEnv("MINIO_SECRET_KEY", "minioadmin"),
 		MinioBucket:    getEnv("MINIO_BUCKET", "sports-platform"),
+
+		UploadDir:       getEnv("UPLOAD_DIR", "/var/www/uploads"),
+		UploadURLPrefix: getEnv("UPLOAD_URL_PREFIX", "/uploads"),
 
 		FrontendURL: getEnv("APP_FRONTEND_URL", "http://localhost"),
 		AdminURL:    getEnv("APP_ADMIN_URL", "http://localhost/admin"),

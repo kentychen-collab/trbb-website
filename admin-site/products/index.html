@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>商品管理 - SportsPlatform Admin</title>
+  <title>商品管理 - Admin</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
@@ -23,17 +23,54 @@
       <li class="nav-item" id="nav-admins"><a href="/admin/admins/" class="nav-link"><i class="nav-icon fas fa-user-shield"></i><p>管理員帳號</p></a></li>
     </ul></nav></div>
   </aside>
+
   <div class="content-wrapper">
-    <div class="content-header"><div class="container-fluid"><h1 class="m-0">商品管理</h1></div></div>
+    <div class="content-header"><div class="container-fluid d-flex justify-content-between align-items-center">
+      <h1 class="m-0">商品管理</h1>
+      <a href="/admin/products/form.html" class="btn btn-primary btn-sm"><i class="fas fa-plus"></i> 新增商品</a>
+    </div></div>
     <section class="content"><div class="container-fluid">
-      <div class="callout callout-info">
-        <h5>功能開發中</h5>
-        <p>商品管理功能即將上線，目前已建立「合作商品」「社團商品」「二手福利」三個分類。</p>
+
+      <!-- 篩選列 -->
+      <div class="card card-outline card-info mb-3">
+        <div class="card-body py-2 d-flex gap-3 align-items-center flex-wrap">
+          <div>
+            <label class="mr-1 small">分類</label>
+            <select id="filter-category" class="form-control form-control-sm d-inline-block" style="width:130px" onchange="applyFilter()">
+              <option value="">全部分類</option>
+            </select>
+          </div>
+          <div>
+            <label class="mr-1 small">狀態</label>
+            <select id="filter-status" class="form-control form-control-sm d-inline-block" style="width:110px" onchange="applyFilter()">
+              <option value="">全部</option>
+              <option value="1">上架</option>
+              <option value="0">下架</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body p-0">
+          <table class="table table-bordered table-hover mb-0">
+            <thead><tr>
+              <th style="width:70px">封面</th>
+              <th>商品名稱</th><th>分類</th><th>價格</th><th>庫存</th><th>狀態</th><th>操作</th>
+            </tr></thead>
+            <tbody id="list-body"><tr><td colspan="7" class="text-center py-4">載入中...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center">
+          <span id="total-info" class="text-muted small"></span>
+          <div id="pagination" class="d-flex" style="gap:4px"></div>
+        </div>
       </div>
     </div></section>
   </div>
   <footer class="main-footer text-center text-sm">SportsPlatform Admin © 2025</footer>
 </div>
+
 <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
@@ -41,6 +78,83 @@
 <script>
 adminAuth.requireLogin();
 if (!adminAuth.isSuperAdmin()) document.getElementById('nav-admins').style.display = 'none';
+
+let page = 1, limit = 20, total = 0;
+
+async function loadCategories() {
+  const res = await adminApi.get('/categories');
+  if (res && res.data) {
+    const sel = document.getElementById('filter-category');
+    res.data.forEach(c => {
+      sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+    });
+  }
+}
+
+async function loadList() {
+  const catID  = document.getElementById('filter-category').value;
+  const status = document.getElementById('filter-status').value;
+  let url = `/products?page=${page}&limit=${limit}`;
+  if (catID)  url += `&category_id=${catID}`;
+  if (status !== '') url += `&status=${status}`;
+  const res = await adminApi.get(url);
+  total = (res && res.total) || 0;
+  const body = document.getElementById('list-body');
+  if (!res || !res.data || res.data.length === 0) {
+    body.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">暫無商品</td></tr>';
+    document.getElementById('total-info').textContent = '共 0 筆'; return;
+  }
+  body.innerHTML = res.data.map(p => `
+    <tr>
+      <td>${p.cover_image
+        ? `<img src="${p.cover_image}" style="width:50px;height:50px;object-fit:cover;border-radius:4px">`
+        : '<div style="width:50px;height:50px;background:#eee;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:20px">📦</div>'}</td>
+      <td>
+        <div class="font-weight-bold">${p.name}</div>
+        <small class="text-muted">${p.slug || ''}</small>
+      </td>
+      <td><span class="badge badge-secondary">${p.category_name || '-'}</span></td>
+      <td>
+        NT$ ${p.price.toLocaleString()}
+        ${p.sale_price ? `<br><small class="text-danger">特價 NT$ ${p.sale_price.toLocaleString()}</small>` : ''}
+      </td>
+      <td>${p.stock}</td>
+      <td>${p.status === 1
+        ? '<span class="badge badge-success">上架</span>'
+        : '<span class="badge badge-secondary">下架</span>'}</td>
+      <td>
+        <a href="/admin/products/form.html?id=${p.id}" class="btn btn-xs btn-info mr-1">編輯</a>
+        <button class="btn btn-xs ${p.status===1?'btn-warning':'btn-success'}"
+          onclick="toggleStatus(${p.id}, ${p.status===1?0:1})">
+          ${p.status===1?'下架':'上架'}
+        </button>
+      </td>
+    </tr>
+  `).join('');
+  document.getElementById('total-info').textContent = `共 ${total} 件商品`;
+  renderPagination();
+}
+
+async function toggleStatus(id, status) {
+  const res = await adminApi.put(`/products/${id}/status`, { status });
+  if (res && res.message) loadList();
+  else alert((res && res.error) || '操作失敗');
+}
+
+function applyFilter() { page = 1; loadList(); }
+
+function renderPagination() {
+  const totalPages = Math.ceil(total / limit);
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <button class="btn btn-sm btn-outline-secondary" onclick="page--;loadList()" ${page===1?'disabled':''}>«</button>
+    <span class="align-self-center small px-2">${page} / ${totalPages}</span>
+    <button class="btn btn-sm btn-outline-secondary" onclick="page++;loadList()" ${page>=totalPages?'disabled':''}>»</button>`;
+}
+
+loadCategories();
+loadList();
 </script>
 </body>
 </html>

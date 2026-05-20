@@ -10,6 +10,7 @@ services:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - ./frontend:/var/www/frontend
       - ./admin-site:/var/www/admin
+      - uploads_data:/var/www/uploads
     depends_on:
       - backend
     restart: unless-stopped
@@ -46,6 +47,9 @@ services:
       - ECPAY_RETURN_URL=${ECPAY_RETURN_URL}
       - GARMIN_CONSUMER_KEY=${GARMIN_CONSUMER_KEY}
       - GARMIN_CONSUMER_SECRET=${GARMIN_CONSUMER_SECRET}
+      - UPLOAD_DIR=/var/www/uploads
+      - UPLOAD_URL_PREFIX=/uploads
+      - uploads_data:/var/www/uploads
     depends_on:
       - mysql
       - redis
@@ -88,3 +92,4 @@ volumes:
   mysql_data:
   redis_data:
   minio_data:
+  uploads_data:
