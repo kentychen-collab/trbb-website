@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>登入 - SportsPlatform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/auth.js"></script>
+</head>
+<body class="bg-gray-50 flex items-center justify-center min-h-screen">
+<div class="w-full max-w-md" x-data="loginForm()">
+  <div class="bg-white shadow rounded-lg p-8">
+    <h1 class="text-2xl font-bold text-center mb-6">登入</h1>
+
+    <div x-show="error" class="bg-red-50 text-red-600 text-sm p-3 rounded mb-4" x-text="error"></div>
+
+    <div class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+        <input type="email" x-model="form.email"
+          class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="your@email.com">
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">密碼</label>
+        <input type="password" x-model="form.password"
+          class="w-full border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          @keydown.enter="submit">
+      </div>
+      <button @click="submit" :disabled="loading"
+        class="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 disabled:opacity-50">
+        <span x-text="loading ? '登入中...' : '登入'"></span>
+      </button>
+    </div>
+
+    <div class="mt-4 text-center text-sm text-gray-500">
+      還沒有帳號？ <a href="/member/register.html" class="text-blue-600 hover:underline">立即註冊</a>
+    </div>
+  </div>
+</div>
+
+<script>
+function loginForm() {
+  return {
+    form: { email: '', password: '' },
+    loading: false,
+    error: '',
+    async submit() {
+      this.loading = true;
+      this.error = '';
+      try {
+        const res = await api.post('/auth/login', this.form);
+        if (res.token) {
+          auth.setToken(res.token);
+          auth.setMember(res.member);
+          const redirect = new URLSearchParams(location.search).get('redirect');
+          window.location.href = redirect || '/';
+        } else {
+          this.error = res.error || '登入失敗';
+        }
+      } catch(e) {
+        this.error = '系統錯誤，請稍後再試';
+      }
+      this.loading = false;
+    }
+  }
+}
+</script>
+</body>
+</html>

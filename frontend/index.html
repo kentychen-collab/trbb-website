@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>運動電商平台</title>
+  <!-- OG Meta for FB/IG share -->
+  <meta property="og:title" content="運動電商平台">
+  <meta property="og:description" content="購物、活動報名、二手拍賣一站搞定">
+  <meta property="og:image" content="/assets/img/og-cover.jpg">
+  <meta property="og:url" content="https://yourdomain.com">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/auth.js"></script>
+</head>
+<body class="bg-gray-50">
+
+  <!-- Navbar -->
+  <nav class="bg-white shadow" x-data="navbar()" x-init="init()">
+    <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
+      <a href="/" class="font-bold text-xl text-blue-600">🏃 SportsPlatform</a>
+      <div class="hidden md:flex gap-6 text-sm">
+        <a href="/products/" class="hover:text-blue-600">商品</a>
+        <a href="/events/" class="hover:text-blue-600">活動報名</a>
+        <a href="/calendar.html" class="hover:text-blue-600">賽事曆</a>
+        <a href="/second-hand/" class="hover:text-blue-600">二手市集</a>
+      </div>
+      <div class="flex items-center gap-3">
+        <!-- 未登入 -->
+        <template x-if="!loggedIn">
+          <a href="/member/login.html" class="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">登入</a>
+        </template>
+        <!-- 已登入 -->
+        <template x-if="loggedIn">
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-gray-600">👋 <span x-text="memberName"></span></span>
+            <a href="/member/profile.html" class="text-sm border border-blue-600 text-blue-600 px-3 py-1.5 rounded hover:bg-blue-50">會員中心</a>
+            <button @click="logout()" class="text-sm text-gray-400 hover:text-red-500">登出</button>
+          </div>
+        </template>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-20 text-center">
+    <h1 class="text-4xl font-bold mb-4">運動人的一站式平台</h1>
+    <p class="text-lg mb-8 opacity-90">購物 · 報名 · 二手 · 紀錄 全都在這</p>
+    <div class="flex gap-4 justify-center">
+      <a href="/events/" class="bg-white text-blue-600 px-6 py-3 rounded-full font-semibold hover:bg-gray-100">活動報名</a>
+      <a href="/products/" class="border border-white px-6 py-3 rounded-full font-semibold hover:bg-white hover:text-blue-600">逛商品</a>
+    </div>
+  </section>
+
+  <!-- 精選商品 -->
+  <section class="max-w-7xl mx-auto px-4 py-12" x-data="featuredProducts()">
+    <h2 class="text-2xl font-bold mb-6">精選商品</h2>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <template x-for="p in products" :key="p.id">
+        <div class="bg-white rounded-lg shadow overflow-hidden hover:shadow-md transition">
+          <img :src="p.cover_image || '/assets/img/placeholder.jpg'" class="w-full h-40 object-cover">
+          <div class="p-3">
+            <div class="text-sm font-medium" x-text="p.name"></div>
+            <div class="text-blue-600 font-bold mt-1" x-text="'NT$ ' + p.price.toLocaleString()"></div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </section>
+
+  <!-- 近期活動 -->
+  <section class="bg-white py-12">
+    <div class="max-w-7xl mx-auto px-4" x-data="upcomingEvents()">
+      <h2 class="text-2xl font-bold mb-6">近期活動</h2>
+      <div class="grid md:grid-cols-3 gap-4">
+        <template x-for="e in events" :key="e.id">
+          <a :href="'/events/detail.html?slug=' + e.slug" class="border rounded-lg p-4 hover:border-blue-400 transition">
+            <div class="text-xs text-blue-600 font-semibold mb-1" x-text="e.category"></div>
+            <div class="font-bold" x-text="e.title"></div>
+            <div class="text-sm text-gray-500 mt-2" x-text="e.event_date + ' · ' + e.location"></div>
+          </a>
+        </template>
+      </div>
+    </div>
+  </section>
+
+  <footer class="bg-gray-800 text-gray-400 text-sm text-center py-8">
+    <p>© 2025 SportsPlatform. All rights reserved.</p>
+    <div class="mt-2 flex justify-center gap-4">
+      <a href="#" class="hover:text-white">Facebook</a>
+      <a href="#" class="hover:text-white">Instagram</a>
+      <a href="#" class="hover:text-white">Garmin Connect</a>
+    </div>
+  </footer>
+
+<script>
+function navbar() {
+  return {
+    loggedIn: false,
+    memberName: '',
+    init() {
+      this.loggedIn = !!localStorage.getItem('access_token');
+      const member = localStorage.getItem('member_info');
+      if (member) {
+        try { this.memberName = JSON.parse(member).name || '會員'; } catch(e) {}
+      }
+    },
+    logout() {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('member_info');
+      window.location.href = '/';
+    }
+  }
+}
+
+function featuredProducts() {
+  return {
+    products: [],
+    async init() {
+      const res = await api.get('/products?featured=1&limit=8');
+      this.products = res.data || [];
+    }
+  }
+}
+function upcomingEvents() {
+  return {
+    events: [],
+    async init() {
+      const res = await api.get('/events?limit=3');
+      this.events = res.data || [];
+    }
+  }
+}
+</script>
+</body>
+</html>

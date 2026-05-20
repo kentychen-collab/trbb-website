@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>賽事行事曆 - SportsPlatform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/auth.js"></script>
+</head>
+<body class="bg-gray-50" x-data="calendar()">
+  <nav class="bg-white shadow" x-data="navbar()" x-init="init()">
+    <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
+      <div class="flex items-center gap-3">
+        <a href="/" class="font-bold text-xl text-blue-600">🏃 SportsPlatform</a>
+        <span class="text-gray-300">›</span>
+        <span class="text-sm text-gray-500">賽事行事曆</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <template x-if="!loggedIn">
+          <a href="/member/login.html" class="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">登入</a>
+        </template>
+        <template x-if="loggedIn">
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-gray-600">👋 <span x-text="memberName"></span></span>
+            <a href="/member/profile.html" class="text-sm border border-blue-600 text-blue-600 px-3 py-1.5 rounded hover:bg-blue-50">會員中心</a>
+            <button @click="logout()" class="text-sm text-gray-400 hover:text-red-500">登出</button>
+          </div>
+        </template>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-5xl mx-auto px-4 py-8">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold">賽事行事曆</h1>
+      <div class="flex gap-2 items-center">
+        <button @click="prevMonth()" class="px-3 py-1 border rounded hover:bg-gray-100">‹</button>
+        <span class="font-semibold text-lg" x-text="currentYM"></span>
+        <button @click="nextMonth()" class="px-3 py-1 border rounded hover:bg-gray-100">›</button>
+      </div>
+    </div>
+
+    <!-- 分類篩選 -->
+    <div class="flex gap-2 mb-4 flex-wrap">
+      <template x-for="cat in ['全部','路跑','鐵人三項','登山','自行車','游泳']">
+        <button @click="selectedCat=cat; load()"
+          :class="selectedCat===cat ? 'bg-blue-600 text-white' : 'bg-white border text-gray-600'"
+          class="px-3 py-1 rounded-full text-sm" x-text="cat"></button>
+      </template>
+    </div>
+
+    <!-- 賽事列表 -->
+    <div class="space-y-3">
+      <template x-for="r in races" :key="r.id">
+        <div class="bg-white rounded-lg shadow p-4 flex gap-4 items-start">
+          <div class="text-center min-w-16">
+            <div class="text-2xl font-bold text-blue-600" x-text="new Date(r.event_date).getDate()"></div>
+            <div class="text-xs text-gray-500" x-text="['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'][new Date(r.event_date).getMonth()]"></div>
+          </div>
+          <div class="flex-1">
+            <div class="flex gap-2 items-center mb-1">
+              <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full" x-text="r.category"></span>
+              <span class="font-semibold" x-text="r.title"></span>
+            </div>
+            <div class="text-sm text-gray-500" x-text="'📍 ' + r.location"></div>
+            <div class="text-sm text-gray-500" x-text="'主辦：' + r.organizer"></div>
+          </div>
+          <div class="flex gap-2">
+            <button @click="saveRace(r.id)" class="text-xs border px-2 py-1 rounded hover:bg-gray-50">收藏</button>
+            <a x-show="r.reg_url" :href="r.reg_url" target="_blank" class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">報名</a>
+          </div>
+        </div>
+      </template>
+      <div x-show="races.length===0" class="text-center text-gray-400 py-12">本月暫無賽事</div>
+    </div>
+  </div>
+
+<script>
+
+function navbar() {
+  return {
+    loggedIn: false,
+    memberName: '',
+    init() {
+      this.loggedIn = !!localStorage.getItem('access_token');
+      const member = localStorage.getItem('member_info');
+      if (member) {
+        try { this.memberName = JSON.parse(member).name || '會員'; } catch(e) {}
+      }
+    },
+    logout() {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('member_info');
+      window.location.href = '/';
+    }
+  }
+}
+function calendar() {
+  const now = new Date();
+  return {
+    races: [], selectedCat: '全部',
+    year: now.getFullYear(), month: now.getMonth() + 1,
+    get currentYM() { return `${this.year} 年 ${this.month} 月`; },
+    async init() { await this.load(); },
+    async load() {
+      const m = String(this.month).padStart(2,'0');
+      let url = `/races?month=${this.year}-${m}`;
+      if (this.selectedCat !== '全部') url += `&category=${encodeURIComponent(this.selectedCat)}`;
+      const res = await api.get(url);
+      this.races = res.data || [];
+    },
+    prevMonth() {
+      this.month--;
+      if (this.month < 1) { this.month = 12; this.year--; }
+      this.load();
+    },
+    nextMonth() {
+      this.month++;
+      if (this.month > 12) { this.month = 1; this.year++; }
+      this.load();
+    },
+    async saveRace(id) {
+      await api.post(`/races/${id}/save`);
+      alert('已收藏！');
+    }
+  }
+}
+</script>
+</body>
+</html>

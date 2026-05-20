@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品列表 - SportsPlatform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/auth.js"></script>
+</head>
+<body class="bg-gray-50" x-data="productList()">
+  <nav class="bg-white shadow" x-data="navbar()" x-init="init()">
+    <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
+      <div class="flex items-center gap-3">
+        <a href="/" class="font-bold text-xl text-blue-600">🏃 SportsPlatform</a>
+        <span class="text-gray-300">›</span>
+        <span class="text-sm text-gray-500">商品列表</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <template x-if="!loggedIn">
+          <a href="/member/login.html" class="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">登入</a>
+        </template>
+        <template x-if="loggedIn">
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-gray-600">👋 <span x-text="memberName"></span></span>
+            <a href="/member/profile.html" class="text-sm border border-blue-600 text-blue-600 px-3 py-1.5 rounded hover:bg-blue-50">會員中心</a>
+            <button @click="logout()" class="text-sm text-gray-400 hover:text-red-500">登出</button>
+          </div>
+        </template>
+      </div>
+    </div>
+  </nav>
+
+  <div class="max-w-7xl mx-auto px-4 py-8 flex gap-6">
+    <!-- 側邊分類 -->
+    <aside class="w-48 shrink-0">
+      <h3 class="font-semibold mb-3">分類</h3>
+      <ul class="space-y-1">
+        <li><button @click="filterCategory(null)" :class="!selectedCategory ? 'text-blue-600 font-semibold' : 'text-gray-600'" class="text-sm hover:text-blue-600">全部</button></li>
+        <template x-for="c in categories" :key="c.id">
+          <li><button @click="filterCategory(c.id)" :class="selectedCategory===c.id ? 'text-blue-600 font-semibold' : 'text-gray-600'" class="text-sm hover:text-blue-600" x-text="c.name"></button></li>
+        </template>
+      </ul>
+    </aside>
+
+    <!-- 商品 Grid -->
+    <main class="flex-1">
+      <div class="flex justify-between items-center mb-4">
+        <span class="text-sm text-gray-500" x-text="total + ' 件商品'"></span>
+        <select x-model="sortBy" @change="load()" class="text-sm border rounded px-2 py-1">
+          <option value="created_at">最新</option>
+          <option value="price_asc">價格低→高</option>
+          <option value="price_desc">價格高→低</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <template x-for="p in products" :key="p.id">
+          <a :href="'/products/detail.html?slug=' + p.slug" class="bg-white rounded-lg shadow hover:shadow-md transition overflow-hidden">
+            <img :src="p.cover_image || '/assets/img/placeholder.jpg'" class="w-full h-40 object-cover">
+            <div class="p-3">
+              <div class="text-sm font-medium line-clamp-2" x-text="p.name"></div>
+              <div class="mt-2 flex items-center gap-2">
+                <span class="text-blue-600 font-bold text-sm" x-text="'NT$ ' + (p.sale_price || p.price).toLocaleString()"></span>
+                <span x-show="p.sale_price" class="text-gray-400 text-xs line-through" x-text="'NT$ ' + p.price.toLocaleString()"></span>
+              </div>
+            </div>
+          </a>
+        </template>
+      </div>
+
+      <!-- Pagination -->
+      <div class="flex justify-center gap-2 mt-8">
+        <button @click="page--; load()" :disabled="page===1" class="px-3 py-1 border rounded disabled:opacity-30">上一頁</button>
+        <span class="px-3 py-1 text-sm" x-text="'第 ' + page + ' 頁'"></span>
+        <button @click="page++; load()" :disabled="products.length < pageSize" class="px-3 py-1 border rounded disabled:opacity-30">下一頁</button>
+      </div>
+    </main>
+  </div>
+
+<script>
+
+function navbar() {
+  return {
+    loggedIn: false,
+    memberName: '',
+    init() {
+      this.loggedIn = !!localStorage.getItem('access_token');
+      const member = localStorage.getItem('member_info');
+      if (member) {
+        try { this.memberName = JSON.parse(member).name || '會員'; } catch(e) {}
+      }
+    },
+    logout() {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('member_info');
+      window.location.href = '/';
+    }
+  }
+}
+function productList() {
+  return {
+    products: [], categories: [],
+    selectedCategory: null, sortBy: 'created_at',
+    page: 1, pageSize: 20, total: 0,
+    async init() {
+      const catRes = await api.get('/categories');
+      this.categories = catRes.data || [];
+      await this.load();
+    },
+    filterCategory(id) {
+      this.selectedCategory = id;
+      this.page = 1;
+      this.load();
+    },
+    async load() {
+      let url = `/products?page=${this.page}&limit=${this.pageSize}&sort=${this.sortBy}`;
+      if (this.selectedCategory) url += `&category_id=${this.selectedCategory}`;
+      const res = await api.get(url);
+      this.products = res.data || [];
+      this.total = res.total || 0;
+    }
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>活動詳情 - SportsPlatform</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/auth.js"></script>
+</head>
+<body class="bg-gray-50" x-data="eventDetail()" x-init="init()">
+
+  <nav class="bg-white shadow" x-data="navbar()" x-init="init()">
+    <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-16">
+      <div class="flex items-center gap-3 text-sm">
+        <a href="/" class="font-bold text-xl text-blue-600">🏃 SportsPlatform</a>
+        <span class="text-gray-300">›</span>
+        <a href="/events/" class="text-gray-500 hover:text-blue-600">活動列表</a>
+        <span class="text-gray-300">›</span>
+        <span class="text-gray-700 truncate max-w-xs" x-text="event ? event.title : '載入中...'"></span>
+      </div>
+      <div class="flex items-center gap-3">
+        <template x-if="!loggedIn">
+          <a href="/member/login.html" class="text-sm bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700">登入</a>
+        </template>
+        <template x-if="loggedIn">
+          <div class="flex items-center gap-3">
+            <span class="text-sm text-gray-600">👋 <span x-text="memberName"></span></span>
+            <a href="/member/profile.html" class="text-sm border border-blue-600 text-blue-600 px-3 py-1.5 rounded hover:bg-blue-50">會員中心</a>
+            <button @click="logout()" class="text-sm text-gray-400 hover:text-red-500">登出</button>
+          </div>
+        </template>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Loading -->
+  <div x-show="loading" class="text-center py-20 text-gray-400">載入中...</div>
+
+  <div x-show="!loading && event" class="max-w-5xl mx-auto px-4 py-8">
+    <div class="grid md:grid-cols-3 gap-8">
+
+      <!-- 左欄：活動資訊 -->
+      <div class="md:col-span-2">
+        <img :src="event && event.cover_image || '/assets/img/event-placeholder.jpg'"
+          class="w-full h-64 object-cover rounded-xl mb-6">
+
+        <div class="flex gap-2 items-center mb-3">
+          <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-medium"
+            x-text="event && event.category"></span>
+        </div>
+        <h1 class="text-2xl font-bold mb-3" x-text="event && event.title"></h1>
+
+        <div class="grid grid-cols-2 gap-3 mb-6">
+          <div class="flex gap-2 items-center text-sm text-gray-600">
+            <span>📅</span>
+            <span x-text="event && event.event_date"></span>
+          </div>
+          <div class="flex gap-2 items-center text-sm text-gray-600">
+            <span>📍</span>
+            <span x-text="event && event.location"></span>
+          </div>
+          <div class="flex gap-2 items-center text-sm text-gray-600">
+            <span>🎫</span>
+            <span>報名期間：<span x-text="regPeriod"></span></span>
+          </div>
+          <div class="flex gap-2 items-center text-sm text-gray-600">
+            <span>👥</span>
+            <span x-text="event && event.max_quota ? '名額：' + event.max_quota + ' 人' : '名額：不限'"></span>
+          </div>
+        </div>
+
+        <!-- 活動說明 -->
+        <div class="prose prose-sm max-w-none">
+          <h2 class="text-lg font-bold mb-2">活動說明</h2>
+          <p class="text-gray-700 whitespace-pre-line" x-text="event && event.description"></p>
+        </div>
+
+        <!-- 社群分享 -->
+        <div class="mt-8 pt-6 border-t">
+          <h3 class="text-sm font-semibold text-gray-600 mb-3">分享活動</h3>
+          <div class="flex gap-2">
+            <button @click="shareFB()" class="flex items-center gap-1.5 text-sm bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+              📘 分享到 Facebook
+            </button>
+            <button @click="copyLink()" class="flex items-center gap-1.5 text-sm border px-4 py-2 rounded hover:bg-gray-50">
+              🔗 複製連結
+            </button>
+          </div>
+          <p x-show="copied" class="text-xs text-green-600 mt-2">✓ 連結已複製！</p>
+        </div>
+      </div>
+
+      <!-- 右欄：報名表 -->
+      <div class="md:col-span-1">
+        <div class="bg-white rounded-xl shadow-md p-5 sticky top-4">
+          <h2 class="font-bold text-lg mb-4">選擇票種</h2>
+
+          <!-- 票種選擇 -->
+          <div class="space-y-2 mb-4">
+            <template x-for="ticket in (event && event.tickets || [])" :key="ticket.id">
+              <label class="flex items-center gap-3 border rounded-lg p-3 cursor-pointer"
+                :class="selectedTicket && selectedTicket.id===ticket.id ? 'border-blue-500 bg-blue-50' : 'hover:bg-gray-50'">
+                <input type="radio" :value="ticket.id" @change="selectedTicket=ticket" class="text-blue-600">
+                <div class="flex-1">
+                  <div class="font-medium text-sm" x-text="ticket.name"></div>
+                  <div class="text-xs text-gray-500 mt-0.5">
+                    <span x-show="ticket.quota" x-text="'剩餘 ' + (ticket.quota - ticket.sold_count) + ' 名'"></span>
+                    <span x-show="!ticket.quota">名額充裕</span>
+                  </div>
+                </div>
+                <div class="text-blue-600 font-bold text-sm" x-text="'NT$ ' + ticket.price.toLocaleString()"></div>
+              </label>
+            </template>
+            <div x-show="!event || !event.tickets || event.tickets.length===0"
+              class="text-sm text-gray-400 text-center py-4">暫無票種資訊</div>
+          </div>
+
+          <!-- 報名資訊 -->
+          <div x-show="selectedTicket" class="space-y-3 mb-4">
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">參加者姓名 *</label>
+              <input type="text" x-model="regForm.participant"
+                class="w-full border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">衣服尺寸</label>
+              <select x-model="regForm.tshirt_size"
+                class="w-full border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none">
+                <option value="">不需要</option>
+                <option value="XS">XS</option>
+                <option value="S">S</option>
+                <option value="M">M</option>
+                <option value="L">L</option>
+                <option value="XL">XL</option>
+                <option value="XXL">XXL</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">緊急聯絡人</label>
+              <input type="text" x-model="regForm.emergency_contact"
+                class="w-full border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-gray-600 mb-1">緊急聯絡電話</label>
+              <input type="tel" x-model="regForm.emergency_phone"
+                class="w-full border rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 focus:outline-none">
+            </div>
+          </div>
+
+          <!-- 錯誤訊息 -->
+          <div x-show="regError" class="text-sm text-red-600 bg-red-50 rounded p-2 mb-3" x-text="regError"></div>
+          <!-- 成功訊息 -->
+          <div x-show="regSuccess" class="text-sm text-green-700 bg-green-50 rounded p-3 mb-3">
+            ✅ 報名成功！請前往 <a href="/member/profile.html#registrations" class="underline">我的報名</a> 查看。
+          </div>
+
+          <button @click="submitReg()" :disabled="!selectedTicket || regSaving || regSuccess"
+            class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed">
+            <span x-text="regSaving ? '報名中...' : (regSuccess ? '已報名' : '立即報名')"></span>
+          </button>
+
+          <p class="text-xs text-gray-400 text-center mt-2">
+            金流整合即將上線，目前免費活動可直接完成報名
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div x-show="!loading && !event" class="text-center py-20">
+    <div class="text-4xl mb-4">😕</div>
+    <div class="text-gray-500">找不到此活動</div>
+    <a href="/events/" class="mt-4 inline-block text-blue-600 text-sm hover:underline">← 回活動列表</a>
+  </div>
+
+<script>
+
+function navbar() {
+  return {
+    loggedIn: false,
+    memberName: '',
+    init() {
+      this.loggedIn = !!localStorage.getItem('access_token');
+      const member = localStorage.getItem('member_info');
+      if (member) {
+        try { this.memberName = JSON.parse(member).name || '會員'; } catch(e) {}
+      }
+    },
+    logout() {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('member_info');
+      window.location.href = '/';
+    }
+  }
+}
+function eventDetail() {
+  return {
+    event: null, loading: true,
+    selectedTicket: null,
+    regForm: { participant: '', tshirt_size: '', emergency_contact: '', emergency_phone: '' },
+    regSaving: false, regError: '', regSuccess: false,
+    copied: false,
+
+    get regPeriod() {
+      if (!this.event) return '';
+      const s = this.event.reg_start_at ? this.event.reg_start_at.substring(0,10) : '開放中';
+      const e = this.event.reg_end_at ? this.event.reg_end_at.substring(0,10) : '不限';
+      return s + ' ~ ' + e;
+    },
+
+    async init() {
+      const slug = new URLSearchParams(location.search).get('slug');
+      if (!slug) { this.loading = false; return; }
+      const res = await api.get('/events/' + slug);
+      this.event = (res && res.data) || null;
+      // Pre-fill participant name from logged-in member
+      const member = auth.getMember();
+      if (member) this.regForm.participant = member.name || '';
+      this.loading = false;
+    },
+
+    async submitReg() {
+      if (!auth.isLoggedIn()) {
+        window.location.href = '/member/login.html?redirect=' + encodeURIComponent(location.href);
+        return;
+      }
+      if (!this.regForm.participant) {
+        this.regError = '請填寫參加者姓名'; return;
+      }
+      this.regSaving = true; this.regError = '';
+      const payload = {
+        ticket_id: this.selectedTicket.id,
+        participant: this.regForm.participant,
+        emergency_contact: this.regForm.emergency_contact,
+        emergency_phone: this.regForm.emergency_phone,
+        tshirt_size: this.regForm.tshirt_size,
+      };
+      const res = await api.post('/events/' + this.event.id + '/register', payload);
+      if (res && res.data) {
+        this.regSuccess = true;
+      } else {
+        this.regError = (res && res.error) || '報名失敗，請稍後再試';
+      }
+      this.regSaving = false;
+    },
+
+    shareFB() {
+      const url = encodeURIComponent(location.href);
+      window.open('https://www.facebook.com/sharer/sharer.php?u=' + url, '_blank', 'width=600,height=400');
+    },
+
+    async copyLink() {
+      await navigator.clipboard.writeText(location.href);
+      this.copied = true;
+      setTimeout(() => this.copied = false, 3000);
+    }
+  }
+}
+</script>
+</body>
+</html>

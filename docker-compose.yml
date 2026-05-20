@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./frontend:/var/www/frontend
+      - ./admin-site:/var/www/admin
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  backend:
+    build: ./backend
+    expose:
+      - "8080"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_NAME=sports_platform
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRE_HOURS=${JWT_EXPIRE_HOURS:-168}
+      - APP_ENV=${APP_ENV:-production}
+      - APP_FRONTEND_URL=${APP_FRONTEND_URL}
+      - APP_ADMIN_URL=${APP_ADMIN_URL}
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET=${MINIO_BUCKET:-sports-platform}
+      - ADMIN_INIT_USERNAME=${ADMIN_INIT_USERNAME}
+      - ADMIN_INIT_EMAIL=${ADMIN_INIT_EMAIL}
+      - ADMIN_INIT_PASSWORD=${ADMIN_INIT_PASSWORD}
+      - ADMIN_INIT_NAME=${ADMIN_INIT_NAME}
+      - ECPAY_MERCHANT_ID=${ECPAY_MERCHANT_ID}
+      - ECPAY_HASH_KEY=${ECPAY_HASH_KEY}
+      - ECPAY_HASH_IV=${ECPAY_HASH_IV}
+      - ECPAY_IS_SANDBOX=${ECPAY_IS_SANDBOX:-true}
+      - ECPAY_RETURN_URL=${ECPAY_RETURN_URL}
+      - GARMIN_CONSUMER_KEY=${GARMIN_CONSUMER_KEY}
+      - GARMIN_CONSUMER_SECRET=${GARMIN_CONSUMER_SECRET}
+    depends_on:
+      - mysql
+      - redis
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS}
+      MYSQL_DATABASE: sports_platform
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "127.0.0.1:3306:3306"
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+  redis_data:
+  minio_data:

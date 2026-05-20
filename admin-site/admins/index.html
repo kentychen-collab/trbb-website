@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>管理員帳號 - SportsPlatform Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="hold-transition sidebar-mini">
+<div class="wrapper">
+  <nav class="main-header navbar navbar-expand navbar-dark navbar-gray-dark">
+    <ul class="navbar-nav"><li class="nav-item"><a class="nav-link" data-widget="pushmenu" href="#"><i class="fas fa-bars"></i></a></li></ul>
+    <ul class="navbar-nav ml-auto"><li class="nav-item"><a class="nav-link" href="#" onclick="adminAuth.logout()"><i class="fas fa-sign-out-alt"></i></a></li></ul>
+  </nav>
+  <aside class="main-sidebar sidebar-dark-primary elevation-4">
+    <a href="/admin/" class="brand-link"><span class="brand-text font-weight-light">🏃 SportsPlatform</span></a>
+    <div class="sidebar"><nav class="mt-2"><ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview">
+      <li class="nav-item"><a href="/admin/" class="nav-link"><i class="nav-icon fas fa-tachometer-alt"></i><p>Dashboard</p></a></li>
+      <li class="nav-item"><a href="/admin/members/" class="nav-link"><i class="nav-icon fas fa-users"></i><p>會員管理</p></a></li>
+      <li class="nav-item"><a href="/admin/events/" class="nav-link"><i class="nav-icon fas fa-calendar-alt"></i><p>活動管理</p></a></li>
+      <li class="nav-item"><a href="/admin/admins/" class="nav-link active"><i class="nav-icon fas fa-user-shield"></i><p>管理員帳號</p></a></li>
+    </ul></nav></div>
+  </aside>
+
+  <div class="content-wrapper">
+    <div class="content-header"><div class="container-fluid d-flex justify-content-between align-items-center">
+      <h1 class="m-0">管理員帳號</h1>
+      <button class="btn btn-primary btn-sm" data-toggle="modal" data-target="#createModal">
+        <i class="fas fa-plus"></i> 新增管理員
+      </button>
+    </div></div>
+
+    <section class="content"><div class="container-fluid">
+      <div class="card">
+        <div class="card-body p-0">
+          <table class="table table-bordered table-hover mb-0">
+            <thead><tr><th>ID</th><th>帳號</th><th>姓名</th><th>Email</th><th>角色</th><th>狀態</th><th>最後登入</th><th>操作</th></tr></thead>
+            <tbody id="list-body"><tr><td colspan="8" class="text-center py-4">載入中...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div></section>
+  </div>
+  <footer class="main-footer text-center text-sm">SportsPlatform Admin © 2025</footer>
+</div>
+
+<!-- 新增管理員 Modal -->
+<div class="modal fade" id="createModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">新增管理員</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+      <div class="modal-body">
+        <div id="create-error" class="alert alert-danger d-none"></div>
+        <div class="form-group"><label>帳號 *</label><input type="text" id="new-username" class="form-control"></div>
+        <div class="form-group"><label>姓名 *</label><input type="text" id="new-name" class="form-control"></div>
+        <div class="form-group"><label>Email *</label><input type="email" id="new-email" class="form-control"></div>
+        <div class="form-group"><label>密碼 * (至少8字元)</label><input type="password" id="new-password" class="form-control"></div>
+        <div class="form-group"><label>角色</label>
+          <select id="new-role" class="form-control">
+            <option value="1">一般管理員</option>
+            <option value="2">超級管理員</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-primary" onclick="createAdmin()">建立</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 設定權限 Modal -->
+<div class="modal fade" id="permModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">設定權限</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+      <div class="modal-body">
+        <input type="hidden" id="perm-admin-id">
+        <p class="text-muted small mb-3">勾選此管理員可存取的功能模組：</p>
+        <div class="form-check mb-2"><input type="checkbox" class="form-check-input" id="perm-members"><label class="form-check-label" for="perm-members">會員管理（審核/停用）</label></div>
+        <div class="form-check mb-2"><input type="checkbox" class="form-check-input" id="perm-events"><label class="form-check-label" for="perm-events">活動管理（建立/編輯活動）</label></div>
+        <div class="form-check mb-2"><input type="checkbox" class="form-check-input" id="perm-products"><label class="form-check-label" for="perm-products">商品管理（張貼商品）</label></div>
+        <div class="form-check mb-2"><input type="checkbox" class="form-check-input" id="perm-orders"><label class="form-check-label" for="perm-orders">訂單管理</label></div>
+        <div class="form-check mb-2"><input type="checkbox" class="form-check-input" id="perm-second-hand"><label class="form-check-label" for="perm-second-hand">二手品審核</label></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+        <button type="button" class="btn btn-primary" onclick="savePermissions()">儲存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+<script src="/admin/assets/js/api.js"></script>
+<script>
+adminAuth.requireLogin();
+if (!adminAuth.isSuperAdmin()) window.location.href = '/admin/';
+
+async function loadList() {
+  const res = await adminApi.get('/admins');
+  const body = document.getElementById('list-body');
+  if (!res || !res.data || res.data.length === 0) {
+    body.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">暫無資料</td></tr>'; return;
+  }
+  body.innerHTML = res.data.map(a => `
+    <tr>
+      <td>${a.id}</td>
+      <td><code>${a.username}</code></td>
+      <td>${a.name}</td>
+      <td>${a.email}</td>
+      <td>${a.role >= 2 ? '<span class="badge badge-danger">超級管理員</span>' : '<span class="badge badge-info">一般管理員</span>'}</td>
+      <td>${a.status === 1 ? '<span class="badge badge-success">啟用</span>' : '<span class="badge badge-secondary">停用</span>'}</td>
+      <td>${a.last_login_at ? a.last_login_at.substring(0,16) : '從未登入'}</td>
+      <td>
+        ${a.role < 2 ? `<button class="btn btn-xs btn-info mr-1" onclick="openPermissions(${a.id})">權限</button>` : ''}
+        ${a.status === 1
+          ? `<button class="btn btn-xs btn-warning" onclick="setStatus(${a.id}, 0)">停用</button>`
+          : `<button class="btn btn-xs btn-success" onclick="setStatus(${a.id}, 1)">啟用</button>`}
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function createAdmin() {
+  const errEl = document.getElementById('create-error');
+  errEl.classList.add('d-none');
+  const payload = {
+    username: document.getElementById('new-username').value,
+    name:     document.getElementById('new-name').value,
+    email:    document.getElementById('new-email').value,
+    password: document.getElementById('new-password').value,
+    role:     parseInt(document.getElementById('new-role').value),
+  };
+  const res = await adminApi.post('/admins', payload);
+  if (res && res.data) {
+    $('#createModal').modal('hide');
+    loadList();
+  } else {
+    errEl.textContent = (res && res.error) || '建立失敗';
+    errEl.classList.remove('d-none');
+  }
+}
+
+async function openPermissions(id) {
+  document.getElementById('perm-admin-id').value = id;
+  const res = await adminApi.get(`/admins/${id}/permissions`);
+  if (res && res.data) {
+    const p = res.data;
+    document.getElementById('perm-members').checked    = !!p.manage_members;
+    document.getElementById('perm-events').checked     = !!p.manage_events;
+    document.getElementById('perm-products').checked   = !!p.manage_products;
+    document.getElementById('perm-orders').checked     = !!p.manage_orders;
+    document.getElementById('perm-second-hand').checked = !!p.manage_second_hand;
+  }
+  $('#permModal').modal('show');
+}
+
+async function savePermissions() {
+  const id = parseInt(document.getElementById('perm-admin-id').value);
+  const payload = {
+    manage_members:    document.getElementById('perm-members').checked,
+    manage_events:     document.getElementById('perm-events').checked,
+    manage_products:   document.getElementById('perm-products').checked,
+    manage_orders:     document.getElementById('perm-orders').checked,
+    manage_second_hand: document.getElementById('perm-second-hand').checked,
+  };
+  const res = await adminApi.put(`/admins/${id}/permissions`, payload);
+  if (res && res.message) {
+    $('#permModal').modal('hide');
+    alert('權限已儲存');
+  } else {
+    alert((res && res.error) || '儲存失敗');
+  }
+}
+
+async function setStatus(id, status) {
+  if (!confirm(`確定要${status===1?'啟用':'停用'}此管理員？`)) return;
+  const res = await adminApi.put(`/admins/${id}/status`, { status });
+  if (res && res.message) loadList();
+  else alert((res && res.error) || '操作失敗');
+}
+
+loadList();
+</script>
+</body>
+</html>

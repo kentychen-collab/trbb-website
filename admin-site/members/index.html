@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <title>會員管理 - SportsPlatform Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="hold-transition sidebar-mini">
+<div class="wrapper">
+  <nav class="main-header navbar navbar-expand navbar-dark navbar-gray-dark">
+    <ul class="navbar-nav"><li class="nav-item"><a class="nav-link" data-widget="pushmenu" href="#"><i class="fas fa-bars"></i></a></li></ul>
+    <ul class="navbar-nav ml-auto"><li class="nav-item"><a class="nav-link" href="#" onclick="adminAuth.logout()"><i class="fas fa-sign-out-alt"></i></a></li></ul>
+  </nav>
+  <aside class="main-sidebar sidebar-dark-primary elevation-4">
+    <a href="/admin/" class="brand-link"><span class="brand-text font-weight-light">🏃 SportsPlatform</span></a>
+    <div class="sidebar"><nav class="mt-2"><ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview">
+      <li class="nav-item"><a href="/admin/" class="nav-link"><i class="nav-icon fas fa-tachometer-alt"></i><p>Dashboard</p></a></li>
+      <li class="nav-item"><a href="/admin/members/" class="nav-link active"><i class="nav-icon fas fa-users"></i><p>會員管理</p></a></li>
+      <li class="nav-item"><a href="/admin/events/" class="nav-link"><i class="nav-icon fas fa-calendar-alt"></i><p>活動管理</p></a></li>
+      <li class="nav-item"><a href="/admin/products/" class="nav-link"><i class="nav-icon fas fa-box"></i><p>商品管理</p></a></li>
+      <li class="nav-item"><a href="/admin/orders/" class="nav-link"><i class="nav-icon fas fa-shopping-cart"></i><p>訂單管理</p></a></li>
+      <li class="nav-item" id="nav-admins"><a href="/admin/admins/" class="nav-link"><i class="nav-icon fas fa-user-shield"></i><p>管理員帳號</p></a></li>
+    </ul></nav></div>
+  </aside>
+
+  <div class="content-wrapper">
+    <div class="content-header"><div class="container-fluid">
+      <h1 class="m-0">會員管理</h1>
+    </div></div>
+    <section class="content"><div class="container-fluid">
+
+      <!-- 狀態 Tab -->
+      <ul class="nav nav-tabs mb-3" id="status-tabs">
+        <li class="nav-item"><a class="nav-link active" href="#" onclick="filterStatus(null, this)">全部</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="filterStatus(0, this)">⏳ 待審核</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="filterStatus(1, this)">✅ 啟用</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" onclick="filterStatus(2, this)">🚫 停用</a></li>
+      </ul>
+
+      <div class="card">
+        <div class="card-body p-0">
+          <table class="table table-bordered table-hover mb-0">
+            <thead><tr>
+              <th>ID</th><th>會員編號</th><th>姓名</th><th>Email</th><th>手機</th><th>狀態</th><th>註冊日期</th><th>操作</th>
+            </tr></thead>
+            <tbody id="list-body"><tr><td colspan="8" class="text-center py-4">載入中...</td></tr></tbody>
+          </table>
+        </div>
+        <div class="card-footer d-flex justify-content-between align-items-center">
+          <span id="total-info" class="text-muted small"></span>
+          <div id="pagination" class="d-flex" style="gap:4px"></div>
+        </div>
+      </div>
+    </div></section>
+  </div>
+  <footer class="main-footer text-center text-sm">SportsPlatform Admin © 2025</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+<script src="/admin/assets/js/api.js"></script>
+<script>
+adminAuth.requireLogin();
+if (!adminAuth.isSuperAdmin()) document.getElementById('nav-admins').style.display = 'none';
+
+let page = 1, limit = 20, total = 0, currentStatus = null;
+
+// Read status from URL
+const urlParams = new URLSearchParams(location.search);
+if (urlParams.has('status')) {
+  currentStatus = parseInt(urlParams.get('status'));
+  // Highlight correct tab
+  document.querySelectorAll('#status-tabs .nav-link').forEach(el => el.classList.remove('active'));
+  const tabMap = {0: 1, 1: 2, 2: 3};
+  const tabIdx = tabMap[currentStatus];
+  if (tabIdx !== undefined) document.querySelectorAll('#status-tabs .nav-link')[tabIdx].classList.add('active');
+}
+
+const statusBadge = {
+  0: '<span class="badge badge-warning">待審核</span>',
+  1: '<span class="badge badge-success">啟用</span>',
+  2: '<span class="badge badge-danger">停用</span>',
+};
+
+async function loadList() {
+  let url = `/members?page=${page}&limit=${limit}`;
+  if (currentStatus !== null) url += `&status=${currentStatus}`;
+  const res = await adminApi.get(url);
+  total = (res && res.total) || 0;
+  const body = document.getElementById('list-body');
+  if (!res || !res.data || res.data.length === 0) {
+    body.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">暫無資料</td></tr>';
+    document.getElementById('total-info').textContent = '共 0 筆';
+    return;
+  }
+  body.innerHTML = res.data.map(m => `
+    <tr>
+      <td>${m.id}</td>
+      <td><code>${m.member_no || '-'}</code></td>
+      <td>${m.name}</td>
+      <td>${m.email}</td>
+      <td>${m.phone || '-'}</td>
+      <td>${statusBadge[m.status] || m.status}</td>
+      <td>${m.created_at ? m.created_at.substring(0,10) : '-'}</td>
+      <td>
+        ${m.status === 0 ? `
+          <button class="btn btn-xs btn-success mr-1" onclick="approve(${m.id})">核准</button>
+          <button class="btn btn-xs btn-danger" onclick="reject(${m.id})">拒絕</button>
+        ` : m.status === 1 ? `
+          <button class="btn btn-xs btn-warning" onclick="setStatus(${m.id}, 2)">停用</button>
+        ` : `
+          <button class="btn btn-xs btn-success" onclick="setStatus(${m.id}, 1)">啟用</button>
+        `}
+      </td>
+    </tr>
+  `).join('');
+  document.getElementById('total-info').textContent = `共 ${total} 筆`;
+  renderPagination();
+}
+
+async function approve(id) {
+  if (!confirm('確定核准此會員？')) return;
+  const res = await adminApi.put(`/members/${id}/approve`);
+  if (res && res.message) { loadList(); showToast('已核准', 'success'); }
+  else alert((res && res.error) || '操作失敗');
+}
+
+async function reject(id) {
+  if (!confirm('確定拒絕此會員申請？')) return;
+  const res = await adminApi.put(`/members/${id}/reject`);
+  if (res && res.message) { loadList(); showToast('已拒絕', 'warning'); }
+}
+
+async function setStatus(id, status) {
+  const res = await adminApi.put(`/members/${id}/status`, { status });
+  if (res && res.message) { loadList(); showToast('狀態已更新', 'info'); }
+}
+
+function filterStatus(status, el) {
+  event.preventDefault();
+  currentStatus = status;
+  page = 1;
+  document.querySelectorAll('#status-tabs .nav-link').forEach(e => e.classList.remove('active'));
+  el.classList.add('active');
+  loadList();
+}
+
+function renderPagination() {
+  const totalPages = Math.ceil(total / limit);
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <button class="btn btn-sm btn-outline-secondary" onclick="page--;loadList()" ${page===1?'disabled':''}>«</button>
+    <span class="align-self-center small px-2">${page} / ${totalPages}</span>
+    <button class="btn btn-sm btn-outline-secondary" onclick="page++;loadList()" ${page>=totalPages?'disabled':''}>»</button>
+  `;
+}
+
+function showToast(msg, type) {
+  const el = document.createElement('div');
+  el.className = `alert alert-${type} position-fixed`;
+  el.style = 'top:1rem;right:1rem;z-index:9999;min-width:200px';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+loadList();
+</script>
+</body>
+</html>

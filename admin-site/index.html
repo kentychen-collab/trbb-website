@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - SportsPlatform Admin</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body class="hold-transition sidebar-mini">
+<div class="wrapper">
+
+  <nav class="main-header navbar navbar-expand navbar-dark navbar-gray-dark">
+    <ul class="navbar-nav">
+      <li class="nav-item"><a class="nav-link" data-widget="pushmenu" href="#"><i class="fas fa-bars"></i></a></li>
+    </ul>
+    <ul class="navbar-nav ml-auto">
+      <li class="nav-item">
+        <span class="nav-link text-sm" id="admin-name-display"></span>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" href="#" onclick="adminAuth.logout()">
+          <i class="fas fa-sign-out-alt"></i> 登出
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <aside class="main-sidebar sidebar-dark-primary elevation-4">
+    <a href="/admin/" class="brand-link">
+      <span class="brand-text font-weight-light">🏃 SportsPlatform</span>
+    </a>
+    <div class="sidebar">
+      <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+        <div class="info">
+          <span class="d-block text-white text-sm" id="sidebar-admin-name">管理員</span>
+          <span class="d-block text-xs" id="sidebar-admin-role" style="color:#aaa"></span>
+        </div>
+      </div>
+      <nav class="mt-2">
+        <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview">
+          <li class="nav-item"><a href="/admin/" class="nav-link active"><i class="nav-icon fas fa-tachometer-alt"></i><p>Dashboard</p></a></li>
+          <li class="nav-item" id="nav-members"><a href="/admin/members/" class="nav-link"><i class="nav-icon fas fa-users"></i><p>會員管理</p></a></li>
+          <li class="nav-item" id="nav-events"><a href="/admin/events/" class="nav-link"><i class="nav-icon fas fa-calendar-alt"></i><p>活動管理</p></a></li>
+          <li class="nav-item" id="nav-products"><a href="/admin/products/" class="nav-link"><i class="nav-icon fas fa-box"></i><p>商品管理</p></a></li>
+          <li class="nav-item" id="nav-orders"><a href="/admin/orders/" class="nav-link"><i class="nav-icon fas fa-shopping-cart"></i><p>訂單管理</p></a></li>
+          <li class="nav-item" id="nav-admins" style="display:none"><a href="/admin/admins/" class="nav-link"><i class="nav-icon fas fa-user-shield"></i><p>管理員帳號</p></a></li>
+        </ul>
+      </nav>
+    </div>
+  </aside>
+
+  <div class="content-wrapper">
+    <div class="content-header"><div class="container-fluid">
+      <h1 class="m-0">Dashboard</h1>
+    </div></div>
+    <section class="content"><div class="container-fluid">
+
+      <!-- Stats -->
+      <div class="row" id="stats-row">
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-warning">
+            <div class="inner"><h3 id="stat-pending">-</h3><p>待審核會員</p></div>
+            <div class="icon"><i class="fas fa-user-clock"></i></div>
+            <a href="/admin/members/?status=0" class="small-box-footer">前往審核 <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-success">
+            <div class="inner"><h3 id="stat-members">-</h3><p>啟用會員</p></div>
+            <div class="icon"><i class="fas fa-users"></i></div>
+            <a href="/admin/members/" class="small-box-footer">查看 <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-info">
+            <div class="inner"><h3 id="stat-events">-</h3><p>本月活動</p></div>
+            <div class="icon"><i class="fas fa-calendar"></i></div>
+            <a href="/admin/events/" class="small-box-footer">查看 <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-danger">
+            <div class="inner"><h3 id="stat-orders">-</h3><p>今日訂單</p></div>
+            <div class="icon"><i class="fas fa-shopping-cart"></i></div>
+            <a href="/admin/orders/" class="small-box-footer">查看 <i class="fas fa-arrow-circle-right"></i></a>
+          </div>
+        </div>
+      </div>
+
+    </div></section>
+  </div>
+  <footer class="main-footer text-center text-sm">SportsPlatform Admin © 2025</footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+<script src="/admin/assets/js/api.js"></script>
+<script>
+adminAuth.requireLogin();
+
+const admin = adminAuth.getAdmin();
+if (admin) {
+  document.getElementById('admin-name-display').textContent = admin.name;
+  document.getElementById('sidebar-admin-name').textContent = admin.name;
+  document.getElementById('sidebar-admin-role').textContent = admin.role >= 2 ? '超級管理員' : '管理員';
+  // 超管才顯示管理員帳號
+  if (admin.role >= 2) document.getElementById('nav-admins').style.display = '';
+  // 依權限隱藏選單
+  if (!adminAuth.hasPermission('manage_members'))  document.getElementById('nav-members').style.display = 'none';
+  if (!adminAuth.hasPermission('manage_events'))   document.getElementById('nav-events').style.display = 'none';
+  if (!adminAuth.hasPermission('manage_products')) document.getElementById('nav-products').style.display = 'none';
+  if (!adminAuth.hasPermission('manage_orders'))   document.getElementById('nav-orders').style.display = 'none';
+}
+
+async function loadStats() {
+  const res = await adminApi.get('/dashboard/stats');
+  if (!res || !res.data) return;
+  const d = res.data;
+  document.getElementById('stat-pending').textContent  = d.pending_members ?? '-';
+  document.getElementById('stat-members').textContent  = d.active_members ?? '-';
+  document.getElementById('stat-events').textContent   = d.monthly_events ?? '-';
+  document.getElementById('stat-orders').textContent   = d.today_orders ?? '-';
+}
+loadStats();
+</script>
+</body>
+</html>

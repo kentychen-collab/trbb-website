@@ -1,0 +1,21 @@
+FROM golang:1.22-alpine AS builder
+WORKDIR /app
+
+# 加這行裝 git
+RUN apk add --no-cache git
+
+COPY go.mod go.sum ./
+COPY vendor-local/ ./vendor-local/
+
+RUN GONOSUMDB="*" GOPROXY="direct" go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o server ./cmd/server
+
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates tzdata
+ENV TZ=Asia/Taipei
+WORKDIR /root/
+COPY --from=builder /app/server .
+EXPOSE 8080
+CMD ["./server"]
