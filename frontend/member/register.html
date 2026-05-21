@@ -1,118 +1,1073 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>申請加入 - SportsPlatform</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-  <script src="/assets/js/api.js"></script>
-  <script src="/assets/js/auth.js"></script>
-</head>
-<body class="bg-gray-50 flex items-center justify-center min-h-screen py-8">
-<div class="w-full max-w-md px-4" x-data="registerForm()">
-  <div class="text-center mb-6">
-    <a href="/" class="text-2xl font-bold text-blue-600">🏃 SportsPlatform</a>
-  </div>
-  <div class="bg-white shadow-md rounded-xl p-8">
-    <h1 class="text-xl font-bold mb-1">申請成為會員</h1>
-    <p class="text-sm text-gray-500 mb-6">填寫資料後，待管理員審核通過即可登入</p>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRBB 會員中心</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+TC:wght@300;400;500;700;900&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --black: #0a0a0a;
+  --red: #E8001A;
+  --red-dark: #a80013;
+  --gold: #FFB800;
+  --white: #F5F2ED;
+  --gray: #888;
+  --gray-light: #1a1a1a;
+  --gray-mid: #2a2a2a;
+  --accent: #00D4FF;
+  --green: #00C48C;
+}
 
-    <!-- 成功提示 -->
-    <div x-show="success" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-      <div class="text-green-700 font-semibold text-sm mb-1">✅ 申請已送出！</div>
-      <p class="text-green-600 text-sm">您的帳號正在等待管理員審核，審核通過後即可登入。</p>
-      <a href="/member/login.html" class="text-sm text-green-700 underline mt-2 inline-block">← 前往登入頁</a>
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+
+body {
+  background: var(--black);
+  color: var(--white);
+  font-family: 'Noto Sans TC', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── BG ── */
+.bg-mesh {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(232,0,26,0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 10% 80%, rgba(0,212,255,0.05) 0%, transparent 50%),
+    #0a0a0a;
+}
+.bg-grid {
+  position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  opacity: 0.03;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.8) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.8) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* ── NAV ── */
+nav {
+  position: fixed; top:0; left:0; right:0; z-index:100;
+  display:flex; align-items:center; justify-content:space-between;
+  padding: 0 40px; height: 64px;
+  background: rgba(10,10,10,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(232,0,26,0.25);
+}
+.logo {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 30px; letter-spacing: 4px;
+}
+.logo span { color: var(--red); }
+.nav-back {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px; font-weight: 600; letter-spacing: 2px;
+  color: var(--gray); text-decoration: none;
+  display: flex; align-items: center; gap: 8px;
+  transition: color 0.2s;
+}
+.nav-back:hover { color: var(--white); }
+
+/* ── MAIN WRAPPER ── */
+.page-wrap {
+  position: relative; z-index: 1;
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 80px 20px 40px;
+}
+
+/* ── AUTH CARD ── */
+.auth-card {
+  width: 100%; max-width: 480px;
+  animation: fadeUp 0.6s ease both;
+}
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(24px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+
+/* ── TABS ── */
+.auth-tabs {
+  display: flex; margin-bottom: 2px;
+}
+.auth-tab {
+  flex: 1; padding: 14px;
+  background: var(--gray-light);
+  border: none; cursor: pointer;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 16px; font-weight: 700; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--gray);
+  transition: all 0.25s;
+  position: relative;
+}
+.auth-tab::after {
+  content: ''; position: absolute;
+  bottom: 0; left: 0; right: 0; height: 2px;
+  background: var(--red);
+  transform: scaleX(0); transition: transform 0.25s;
+}
+.auth-tab.active {
+  background: var(--gray-mid); color: var(--white);
+}
+.auth-tab.active::after { transform: scaleX(1); }
+
+/* ── FORM PANEL ── */
+.auth-panel {
+  background: var(--gray-light);
+  padding: 40px;
+  display: none;
+}
+.auth-panel.active { display: block; }
+
+.panel-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 40px; letter-spacing: 3px;
+  margin-bottom: 6px; line-height: 1;
+}
+.panel-sub {
+  font-size: 13px; font-weight: 300;
+  color: rgba(245,242,237,0.5);
+  margin-bottom: 32px;
+}
+
+/* ── FORM FIELDS ── */
+.field { margin-bottom: 20px; }
+.field label {
+  display: block;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--gray);
+  margin-bottom: 8px;
+}
+.field input, .field select {
+  width: 100%; padding: 14px 16px;
+  background: var(--black);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--white);
+  font-family: 'Noto Sans TC', sans-serif;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  -webkit-appearance: none;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--red);
+}
+.field input::placeholder { color: rgba(255,255,255,0.2); }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* password eye toggle */
+.field-wrap { position: relative; }
+.field-wrap input { padding-right: 48px; }
+.eye-btn {
+  position: absolute; right: 14px; top: 50%;
+  transform: translateY(-50%);
+  background: none; border: none; cursor: pointer;
+  color: var(--gray); font-size: 16px;
+  transition: color 0.2s;
+}
+.eye-btn:hover { color: var(--white); }
+
+/* ── MEMBERSHIP SELECTOR ── */
+.plan-select {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin-bottom: 20px;
+}
+.plan-card {
+  padding: 16px;
+  border: 1px solid rgba(255,255,255,0.1);
+  cursor: pointer; transition: all 0.2s;
+  position: relative;
+}
+.plan-card:hover { border-color: rgba(255,255,255,0.3); }
+.plan-card.selected { border-color: var(--red); background: rgba(232,0,26,0.08); }
+.plan-card.selected.gold-plan { border-color: var(--gold); background: rgba(255,184,0,0.08); }
+.plan-badge {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--gray);
+  margin-bottom: 8px;
+}
+.plan-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 22px; letter-spacing: 1px; line-height: 1;
+  margin-bottom: 4px;
+}
+.plan-price {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; color: var(--white);
+}
+.plan-price span { font-size: 14px; font-family: 'Noto Sans TC', sans-serif; color: var(--gray); font-weight: 300; }
+.plan-card.selected .plan-price { color: var(--red); }
+.plan-card.selected.gold-plan .plan-price { color: var(--gold); }
+.plan-check {
+  position: absolute; top: 10px; right: 10px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--red);
+  display: none; align-items: center; justify-content: center;
+  font-size: 10px;
+}
+.plan-card.selected .plan-check { display: flex; }
+.plan-card.selected.gold-plan .plan-check { background: var(--gold); color: var(--black); }
+
+/* ── BENEFITS ── */
+.benefits {
+  background: rgba(0,0,0,0.3);
+  padding: 16px; margin-bottom: 20px;
+  border-left: 2px solid var(--red);
+}
+.benefits-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: 2px;
+  color: var(--red); text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.benefit-item {
+  font-size: 12px; font-weight: 300;
+  color: rgba(245,242,237,0.65);
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 6px; line-height: 1.4;
+}
+.benefit-item::before {
+  content: ''; display: block;
+  width: 12px; height: 1px; background: var(--red);
+  flex-shrink: 0;
+}
+
+/* ── DIVIDER ── */
+.divider {
+  display: flex; align-items: center; gap: 12px;
+  margin: 24px 0;
+}
+.divider::before, .divider::after {
+  content: ''; flex: 1; height: 1px;
+  background: rgba(255,255,255,0.08);
+}
+.divider span {
+  font-size: 11px; letter-spacing: 2px; color: var(--gray);
+  text-transform: uppercase;
+}
+
+/* ── SOCIAL LOGIN ── */
+.social-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 24px; }
+.social-btn {
+  padding: 11px; border: 1px solid rgba(255,255,255,0.12);
+  background: transparent; color: var(--white); cursor: pointer;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px; font-weight: 600; letter-spacing: 1px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all 0.2s;
+}
+.social-btn:hover { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.25); }
+.social-icon { font-size: 16px; }
+
+/* ── SUBMIT BTN ── */
+.submit-btn {
+  width: 100%; padding: 16px;
+  background: var(--red); color: var(--white); border: none; cursor: pointer;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 16px; font-weight: 700; letter-spacing: 4px; text-transform: uppercase;
+  clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+  transition: all 0.2s; position: relative; overflow: hidden;
+}
+.submit-btn::after {
+  content: ''; position: absolute; inset: 0;
+  background: rgba(255,255,255,0.1);
+  transform: translateX(-100%); transition: transform 0.3s;
+}
+.submit-btn:hover::after { transform: translateX(0); }
+.submit-btn:hover { background: var(--red-dark); }
+.submit-btn.loading { opacity: 0.7; cursor: not-allowed; }
+
+/* ── CHECKBOX ── */
+.check-wrap {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin-bottom: 20px;
+}
+.check-wrap input[type="checkbox"] {
+  width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px;
+  accent-color: var(--red); cursor: pointer;
+}
+.check-wrap label {
+  font-size: 12px; font-weight: 300;
+  color: rgba(245,242,237,0.5); line-height: 1.6; cursor: pointer;
+}
+.check-wrap a { color: var(--red); text-decoration: none; }
+
+/* ── FORGOT / SWITCH ── */
+.form-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: 16px;
+}
+.form-link {
+  font-size: 12px; color: var(--gray); cursor: pointer;
+  text-decoration: none; transition: color 0.2s;
+}
+.form-link:hover { color: var(--white); }
+
+/* ── SUCCESS STATE ── */
+.success-panel {
+  background: var(--gray-light); padding: 60px 40px;
+  text-align: center; display: none;
+}
+.success-panel.show { display: block; animation: fadeUp 0.5s ease; }
+.success-icon {
+  font-size: 64px; margin-bottom: 24px; display: block;
+}
+.success-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 40px; letter-spacing: 3px; margin-bottom: 12px;
+  color: var(--green);
+}
+.success-sub {
+  font-size: 14px; font-weight: 300;
+  color: rgba(245,242,237,0.55); line-height: 1.8;
+  margin-bottom: 32px;
+}
+.success-member-card {
+  background: var(--black); padding: 24px;
+  border-left: 3px solid var(--gold);
+  margin-bottom: 28px; text-align: left;
+}
+.member-card-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: 3px;
+  color: var(--gold); text-transform: uppercase; margin-bottom: 12px;
+}
+.member-card-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px; letter-spacing: 2px; margin-bottom: 4px;
+}
+.member-card-info {
+  font-size: 12px; color: var(--gray); display: flex; gap: 20px;
+}
+
+/* ── PROFILE (logged in state) ── */
+.profile-wrap {
+  width: 100%; max-width: 900px;
+  display: none;
+  animation: fadeUp 0.6s ease both;
+}
+.profile-wrap.show { display: block; }
+
+.profile-header {
+  display: flex; align-items: center; gap: 28px;
+  background: var(--gray-light); padding: 40px;
+  margin-bottom: 2px; position: relative; overflow: hidden;
+}
+.profile-header::before {
+  content: 'TRBB'; position: absolute;
+  right: -20px; top: 50%; transform: translateY(-50%);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 160px; color: transparent;
+  -webkit-text-stroke: 1px rgba(232,0,26,0.1);
+  user-select: none; pointer-events: none;
+}
+.avatar-wrap {
+  width: 88px; height: 88px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--red-dark), var(--red));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Bebas Neue', sans-serif; font-size: 36px;
+  flex-shrink: 0; position: relative;
+}
+.avatar-badge {
+  position: absolute; bottom: 0; right: 0;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--gold); color: var(--black);
+  font-size: 12px; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; border: 2px solid var(--black);
+}
+.profile-info { flex: 1; }
+.profile-name {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 42px; letter-spacing: 2px; line-height: 1; margin-bottom: 6px;
+}
+.profile-meta {
+  display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 12px;
+}
+.meta-item {
+  font-size: 12px; color: var(--gray);
+  display: flex; align-items: center; gap: 6px;
+}
+.meta-item strong { color: var(--white); }
+.badge-2 {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px;
+  background: rgba(255,184,0,0.12); color: var(--gold);
+  border: 1px solid rgba(255,184,0,0.3);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: 2px;
+}
+
+/* profile grid */
+.profile-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 2px;
+}
+.profile-section {
+  background: var(--gray-light); padding: 32px;
+}
+.profile-section.wide { grid-column: span 2; }
+.profile-section.full { grid-column: span 3; }
+.section-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px; font-weight: 700; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--red);
+  margin-bottom: 20px; display: flex; align-items: center; gap: 10px;
+}
+.section-title::after {
+  content: ''; flex: 1; height: 1px; background: rgba(232,0,26,0.2);
+}
+
+/* stats */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.stat-box { text-align: center; }
+.stat-big {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 44px; line-height: 1; color: var(--white);
+}
+.stat-big span { color: var(--red); font-size: 24px; }
+.stat-lbl {
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--gray); margin-top: 4px;
+}
+
+/* race history */
+.race-item {
+  display: grid; grid-template-columns: 80px 1fr auto;
+  align-items: center; gap: 16px; padding: 16px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.race-item:last-child { border-bottom: none; }
+.race-date {
+  font-family: 'Bebas Neue', sans-serif; font-size: 16px;
+  color: var(--red); line-height: 1.2;
+}
+.race-date small {
+  display: block; font-family: 'Noto Sans TC', sans-serif;
+  font-size: 10px; color: var(--gray); font-weight: 300;
+}
+.race-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px; font-weight: 700; margin-bottom: 4px;
+}
+.race-dist {
+  font-size: 11px; color: var(--gray);
+  display: flex; align-items: center; gap: 8px;
+}
+.race-time {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px; text-align: right; line-height: 1;
+}
+.race-time small {
+  display: block; font-family: 'Noto Sans TC', sans-serif;
+  font-size: 10px; color: var(--gray); font-weight: 300;
+}
+.dist-tag {
+  padding: 2px 8px;
+  font-size: 10px; font-weight: 700; letter-spacing: 1px;
+  font-family: 'Barlow Condensed', sans-serif;
+  border: 1px solid;
+}
+.tag-full { color: var(--red); border-color: var(--red); }
+.tag-half { color: #aaa; border-color: #aaa; }
+.tag-sprint { color: var(--accent); border-color: var(--accent); }
+
+/* quick actions */
+.quick-actions { display: flex; flex-direction: column; gap: 8px; }
+.quick-btn {
+  padding: 12px 16px; background: var(--gray-mid);
+  border: none; cursor: pointer; color: var(--white);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px; font-weight: 600; letter-spacing: 1px;
+  display: flex; align-items: center; gap: 10px;
+  transition: background 0.2s; text-align: left;
+}
+.quick-btn:hover { background: #333; }
+.quick-btn .qicon { font-size: 18px; width: 24px; text-align: center; }
+
+/* ── TOAST ── */
+.toast {
+  position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--gray-mid); color: var(--white);
+  padding: 14px 28px; font-size: 14px; font-weight: 400;
+  border-left: 3px solid var(--green); z-index: 9999;
+  transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── FORGOT PASSWORD PANEL ── */
+.forgot-panel {
+  background: var(--gray-light); padding: 40px;
+  display: none;
+}
+.forgot-panel.active { display: block; animation: fadeUp 0.4s ease; }
+
+/* ── RWD ── */
+@media (max-width: 768px) {
+  nav { padding: 0 16px; }
+  .auth-panel, .forgot-panel { padding: 28px 20px; }
+  .profile-header { padding: 24px 20px; flex-direction: column; align-items: flex-start; gap: 16px; }
+  .profile-grid { grid-template-columns: 1fr; }
+  .profile-section.wide, .profile-section.full { grid-column: span 1; }
+  .stat-grid { grid-template-columns: repeat(3,1fr); }
+  .race-item { grid-template-columns: 60px 1fr auto; gap: 10px; }
+  .social-btns { grid-template-columns: 1fr; }
+  .field-row { grid-template-columns: 1fr; }
+  .plan-select { grid-template-columns: 1fr; }
+  .profile-wrap { max-width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-mesh"></div>
+<div class="bg-grid"></div>
+
+<nav>
+  <div class="logo">TR<span>BB</span></div>
+  <a href="#" class="nav-back" onclick="goHome()">← 返回主站</a>
+</nav>
+
+<!-- AUTH SECTION -->
+<div class="page-wrap" id="authWrap">
+  <div class="auth-card" id="authCard">
+
+    <!-- TABS -->
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">登入</button>
+      <button class="auth-tab" onclick="switchTab('register')">加入會員</button>
     </div>
 
-    <div x-show="!success">
-      <div x-show="error" class="bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-lg mb-4" x-text="error"></div>
+    <!-- LOGIN PANEL -->
+    <div class="auth-panel active" id="loginPanel">
+      <div class="panel-title">歡迎回來</div>
+      <div class="panel-sub">登入您的 TRBB 鐵人帳號</div>
 
-      <div class="space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
-            會員編號 <span class="text-red-500">*</span>
-            <span class="text-xs text-gray-400 font-normal ml-1">（如：A2025001，建立後不可更改）</span>
-          </label>
-          <input type="text" x-model="form.member_no"
-            class="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="A2025001">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">姓名 <span class="text-red-500">*</span></label>
-          <input type="text" x-model="form.name"
-            class="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Email <span class="text-red-500">*</span></label>
-          <input type="email" x-model="form.email"
-            class="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">手機</label>
-          <input type="tel" x-model="form.phone"
-            class="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="0912345678">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">密碼 <span class="text-red-500">*</span> <span class="text-xs text-gray-400 font-normal">（至少 8 字元）</span></label>
-          <input type="password" x-model="form.password"
-            class="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">確認密碼 <span class="text-red-500">*</span></label>
-          <input type="password" x-model="form.confirm"
-            class="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            @keydown.enter="submit()">
-        </div>
-        <button @click="submit()" :disabled="loading"
-          class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-semibold text-sm hover:bg-blue-700 disabled:opacity-50 transition">
-          <span x-text="loading ? '送出中...' : '送出申請'"></span>
+      <div class="social-btns">
+        <button class="social-btn" onclick="socialLogin('Google')">
+          <span class="social-icon">🔵</span> Google 登入
+        </button>
+        <button class="social-btn" onclick="socialLogin('LINE')">
+          <span class="social-icon">🟢</span> LINE 登入
         </button>
       </div>
 
-      <div class="mt-4 text-center text-sm text-gray-500">
-        已有帳號？<a href="/member/login.html" class="text-blue-600 hover:underline">前往登入</a>
+      <div class="divider"><span>或使用帳號密碼</span></div>
+
+      <div class="field">
+        <label>電子信箱</label>
+        <input type="email" id="loginEmail" placeholder="your@email.com">
+      </div>
+      <div class="field">
+        <label>密碼</label>
+        <div class="field-wrap">
+          <input type="password" id="loginPwd" placeholder="••••••••">
+          <button class="eye-btn" onclick="togglePwd('loginPwd', this)">👁</button>
+        </div>
+      </div>
+
+      <button class="submit-btn" onclick="doLogin()">登入 TRBB</button>
+
+      <div class="form-footer">
+        <a class="form-link" onclick="switchForgot()">忘記密碼？</a>
+        <a class="form-link" onclick="switchTab('register')">還沒有帳號 → 立即加入</a>
       </div>
     </div>
+
+    <!-- REGISTER PANEL -->
+    <div class="auth-panel" id="registerPanel">
+      <div class="panel-title">加入我們</div>
+      <div class="panel-sub">成為 TRBB 鐵人拔巴的一員</div>
+
+      <!-- Plan Selection -->
+      <div class="field">
+        <label>選擇方案</label>
+        <div class="plan-select">
+          <div class="plan-card" onclick="selectPlan('free', this)">
+            <div class="plan-badge">基本</div>
+            <div class="plan-name">一般會員</div>
+            <div class="plan-price">免費 <span>/永久</span></div>
+            <div class="plan-check">✓</div>
+          </div>
+          <div class="plan-card gold-plan selected" onclick="selectPlan('2.0', this)">
+            <div class="plan-badge" style="color:var(--gold)">推薦 ★</div>
+            <div class="plan-name" style="color:var(--gold)">TRBB 2.0</div>
+            <div class="plan-price">1,200 <span>/年</span></div>
+            <div class="plan-check" style="background:var(--gold);color:#000;">✓</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2.0 Benefits -->
+      <div class="benefits" id="benefits20">
+        <div class="benefits-title">TRBB 2.0 專屬權益</div>
+        <div class="benefit-item">商品 8 折優惠（號碼帶、裝備等）</div>
+        <div class="benefit-item">團報優先名額 + 專屬接駁車預留</div>
+        <div class="benefit-item">個人成績追蹤 + 訓練數據分析</div>
+        <div class="benefit-item">完賽相片連結自動整合</div>
+        <div class="benefit-item">會員專屬討論區 + 資源共享</div>
+        <div class="benefit-item">年費活動早鳥報名資格</div>
+      </div>
+
+      <!-- Fields -->
+      <div class="field-row">
+        <div class="field">
+          <label>姓名</label>
+          <input type="text" id="regName" placeholder="真實姓名">
+        </div>
+        <div class="field">
+          <label>暱稱</label>
+          <input type="text" id="regNick" placeholder="顯示名稱">
+        </div>
+      </div>
+      <div class="field">
+        <label>電子信箱</label>
+        <input type="email" id="regEmail" placeholder="your@email.com">
+      </div>
+      <div class="field">
+        <label>手機號碼</label>
+        <input type="tel" id="regPhone" placeholder="09XX-XXX-XXX">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>密碼</label>
+          <div class="field-wrap">
+            <input type="password" id="regPwd" placeholder="至少8位">
+            <button class="eye-btn" onclick="togglePwd('regPwd', this)">👁</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>確認密碼</label>
+          <div class="field-wrap">
+            <input type="password" id="regPwd2" placeholder="再輸入一次">
+            <button class="eye-btn" onclick="togglePwd('regPwd2', this)">👁</button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>三鐵經驗</label>
+        <select id="regExp">
+          <option value="">選擇經驗等級</option>
+          <option>新手（第一次參賽）</option>
+          <option>初級（1-3場）</option>
+          <option>中級（4-10場）</option>
+          <option>進階（10場以上）</option>
+          <option>老手（全鐵人完賽）</option>
+        </select>
+      </div>
+
+      <div class="check-wrap">
+        <input type="checkbox" id="agreeTerms">
+        <label for="agreeTerms">我同意 <a href="#">服務條款</a> 及 <a href="#">隱私政策</a>，並了解 TRBB 2.0 年費方案的相關規定。</label>
+      </div>
+
+      <button class="submit-btn" onclick="doRegister()" style="background: var(--gold); color: #000;">加入 TRBB 2.0</button>
+
+      <div class="form-footer" style="margin-top:16px;">
+        <a class="form-link" onclick="switchTab('login')">已有帳號 → 立即登入</a>
+      </div>
+    </div>
+
+    <!-- FORGOT PASSWORD PANEL -->
+    <div class="forgot-panel" id="forgotPanel">
+      <div class="panel-title">重設密碼</div>
+      <div class="panel-sub">輸入您的信箱，我們將發送重設連結</div>
+      <div class="field">
+        <label>電子信箱</label>
+        <input type="email" id="forgotEmail" placeholder="your@email.com">
+      </div>
+      <button class="submit-btn" onclick="doForgot()">發送重設信件</button>
+      <div class="form-footer" style="margin-top:16px;">
+        <a class="form-link" onclick="switchTab('login')">← 返回登入</a>
+      </div>
+    </div>
+
+  </div><!-- /auth-card -->
+</div><!-- /auth-wrap -->
+
+<!-- PROFILE SECTION (shown after login) -->
+<div class="page-wrap" id="profileWrap" style="display:none; align-items:flex-start; padding-top:88px;">
+  <div class="profile-wrap" id="profileCard">
+
+    <!-- Header -->
+    <div class="profile-header">
+      <div class="avatar-wrap" id="avatarEl">蔡<div class="avatar-badge">2</div></div>
+      <div class="profile-info">
+        <div class="profile-name" id="profileName">蔡鐵拔</div>
+        <div class="profile-meta">
+          <div class="meta-item">📧 <strong>tsai@trbb.com</strong></div>
+          <div class="meta-item">📱 <strong>0912-345-678</strong></div>
+          <div class="meta-item">🗓 <strong>加入於 2024.03</strong></div>
+        </div>
+        <span class="badge-2">⭐ TRBB 2.0 會員</span>
+      </div>
+      <button class="quick-btn" onclick="doLogout()" style="margin-left:auto; background:rgba(232,0,26,0.15); color:var(--red); padding:10px 20px; align-self:flex-start;">登出</button>
+    </div>
+
+    <!-- Grid -->
+    <div class="profile-grid">
+
+      <!-- Stats -->
+      <div class="profile-section full">
+        <div class="section-title">個人成績總覽</div>
+        <div class="stat-grid">
+          <div class="stat-box">
+            <div class="stat-big">8<span>場</span></div>
+            <div class="stat-lbl">完賽場次</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-big">2<span>次</span></div>
+            <div class="stat-lbl">全程鐵人</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-big">226<span>km</span></div>
+            <div class="stat-lbl">最遠完賽</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Race History -->
+      <div class="profile-section wide">
+        <div class="section-title">參賽紀錄</div>
+        <div class="race-item">
+          <div class="race-date">APR 13<small>2025</small></div>
+          <div>
+            <div class="race-name">IRONMAN Taiwan</div>
+            <div class="race-dist"><span class="dist-tag tag-full">FULL</span> 台東活水湖 · 號碼 5488</div>
+          </div>
+          <div class="race-time">11:42:38<small>完賽時間</small></div>
+        </div>
+        <div class="race-item">
+          <div class="race-date">SEP 08<small>2024</small></div>
+          <div>
+            <div class="race-name">IRONMAN 70.3 Liuqiu</div>
+            <div class="race-dist"><span class="dist-tag tag-half">70.3</span> 小琉球 · 號碼 2341</div>
+          </div>
+          <div class="race-time">5:28:14<small>完賽時間</small></div>
+        </div>
+        <div class="race-item">
+          <div class="race-date">MAY 19<small>2024</small></div>
+          <div>
+            <div class="race-name">TRBB 51.5K Sprint</div>
+            <div class="race-dist"><span class="dist-tag tag-sprint">SPRINT</span> 澄清湖 · 號碼 1022</div>
+          </div>
+          <div class="race-time">2:14:55<small>完賽時間</small></div>
+        </div>
+
+        <!-- Input bib number -->
+        <div style="margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.06);">
+          <div style="font-family:'Barlow Condensed',sans-serif; font-size:11px; letter-spacing:2px; color:var(--gray); text-transform:uppercase; margin-bottom:10px;">輸入參賽號碼匯入成績</div>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="bibInput" placeholder="輸入號碼布號碼" style="flex:1; padding:10px 14px; background:var(--black); border:1px solid rgba(255,255,255,0.1); color:var(--white); font-size:13px; outline:none; font-family:'Noto Sans TC',sans-serif;">
+            <button onclick="importBib()" style="padding:10px 20px; background:var(--red); color:var(--white); border:none; cursor:pointer; font-family:'Barlow Condensed',sans-serif; font-size:13px; font-weight:700; letter-spacing:1px; white-space:nowrap;">匯入成績</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="profile-section">
+        <div class="section-title">快速功能</div>
+        <div class="quick-actions">
+          <button class="quick-btn"><span class="qicon">📊</span> 訓練日記</button>
+          <button class="quick-btn"><span class="qicon">👥</span> 團報資訊</button>
+          <button class="quick-btn"><span class="qicon">🔄</span> 交換物資</button>
+          <button class="quick-btn"><span class="qicon">📸</span> 完賽相片</button>
+          <button class="quick-btn"><span class="qicon">🚌</span> 賽事交通</button>
+          <button class="quick-btn"><span class="qicon">⚙️</span> 帳號設定</button>
+        </div>
+      </div>
+
+      <!-- 完賽相片 -->
+      <div class="profile-section full">
+        <div class="section-title">完賽相片連結</div>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+          <div style="background:var(--black); padding:16px; border:1px solid rgba(255,255,255,0.06);">
+            <div style="font-size:10px; letter-spacing:2px; color:var(--gray); text-transform:uppercase; margin-bottom:8px;">IRONMAN Taiwan 2025</div>
+            <div style="font-size:13px; margin-bottom:12px; color:rgba(245,242,237,0.6);">號碼 #5488</div>
+            <a href="#" style="color:var(--accent); font-size:12px; font-family:'Barlow Condensed',sans-serif; letter-spacing:1px; font-weight:700;">🔗 查看完賽相片</a>
+          </div>
+          <div style="background:var(--black); padding:16px; border:1px solid rgba(255,255,255,0.06);">
+            <div style="font-size:10px; letter-spacing:2px; color:var(--gray); text-transform:uppercase; margin-bottom:8px;">70.3 Liuqiu 2024</div>
+            <div style="font-size:13px; margin-bottom:12px; color:rgba(245,242,237,0.6);">號碼 #2341</div>
+            <a href="#" style="color:var(--accent); font-size:12px; font-family:'Barlow Condensed',sans-serif; letter-spacing:1px; font-weight:700;">🔗 查看完賽相片</a>
+          </div>
+          <div style="background:var(--black); padding:16px; border:1px dashed rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; cursor:pointer;" onclick="showToast('請輸入參賽號碼匯入')">
+            <div style="text-align:center; color:var(--gray); font-size:12px;">＋<br>新增賽事相片</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /profile-grid -->
   </div>
 </div>
 
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
 <script>
-function registerForm() {
-  return {
-    form: { member_no: '', name: '', email: '', phone: '', password: '', confirm: '' },
-    loading: false, error: '', success: false,
+// ── STATE ──
+let currentPlan = '2.0';
+let currentTab = 'login';
 
-    async submit() {
-      this.error = '';
-      if (!this.form.member_no) { this.error = '請填寫會員編號'; return; }
-      if (!this.form.name)      { this.error = '請填寫姓名'; return; }
-      if (!this.form.email)     { this.error = '請填寫 Email'; return; }
-      if (this.form.password.length < 8) { this.error = '密碼至少 8 個字元'; return; }
-      if (this.form.password !== this.form.confirm) { this.error = '密碼與確認密碼不一致'; return; }
+// ── TABS ──
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.auth-tab').forEach((t,i) => {
+    t.classList.toggle('active', (i===0 && tab==='login') || (i===1 && tab==='register'));
+  });
+  document.getElementById('loginPanel').classList.toggle('active', tab==='login');
+  document.getElementById('registerPanel').classList.toggle('active', tab==='register');
+  document.getElementById('forgotPanel').classList.remove('active');
 
-      this.loading = true;
-      try {
-        const res = await api.post('/auth/register', {
-          member_no: this.form.member_no,
-          name:      this.form.name,
-          email:     this.form.email,
-          phone:     this.form.phone,
-          password:  this.form.password,
-        });
-        if (res && res.member) {
-          this.success = true;
-        } else {
-          this.error = (res && res.error) || '申請失敗，請稍後再試';
-        }
-      } catch(e) {
-        this.error = '系統錯誤，請稍後再試';
-      }
-      this.loading = false;
+  // Update submit btn
+  const btn = document.querySelector('#registerPanel .submit-btn');
+  if (btn) {
+    if (currentPlan === '2.0') {
+      btn.style.background = 'var(--gold)';
+      btn.style.color = '#000';
+      btn.textContent = '加入 TRBB 2.0';
+    } else {
+      btn.style.background = 'var(--red)';
+      btn.style.color = '#fff';
+      btn.textContent = '免費加入會員';
     }
   }
 }
+
+function switchForgot() {
+  document.getElementById('loginPanel').classList.remove('active');
+  document.getElementById('forgotPanel').classList.add('active');
+}
+
+// ── PLAN SELECT ──
+function selectPlan(plan, el) {
+  currentPlan = plan;
+  document.querySelectorAll('.plan-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+
+  const b = document.getElementById('benefits20');
+  const btn = document.querySelector('#registerPanel .submit-btn');
+
+  if (plan === '2.0') {
+    b.style.display = 'block';
+    btn.style.background = 'var(--gold)';
+    btn.style.color = '#000';
+    btn.textContent = '加入 TRBB 2.0（NT$1,200/年）';
+  } else {
+    b.style.display = 'none';
+    btn.style.background = 'var(--red)';
+    btn.style.color = '#fff';
+    btn.textContent = '免費加入一般會員';
+  }
+}
+
+// ── TOGGLE PASSWORD ──
+function togglePwd(id, btn) {
+  const input = document.getElementById(id);
+  if (input.type === 'password') {
+    input.type = 'text'; btn.textContent = '🙈';
+  } else {
+    input.type = 'password'; btn.textContent = '👁';
+  }
+}
+
+// ── LOGIN ──
+function doLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pwd   = document.getElementById('loginPwd').value;
+  if (!email || !pwd) { showToast('❌ 請填寫信箱與密碼'); return; }
+
+  const btn = document.querySelector('#loginPanel .submit-btn');
+  btn.textContent = '登入中...'; btn.classList.add('loading');
+
+  setTimeout(() => {
+    btn.textContent = '登入 TRBB'; btn.classList.remove('loading');
+    showProfile('蔡鐵拔', email);
+  }, 1200);
+}
+
+function socialLogin(provider) {
+  showToast(`🔗 連接 ${provider} 登入中...`);
+  setTimeout(() => showProfile('鐵人選手', `user@${provider.toLowerCase()}.com`), 1500);
+}
+
+// ── REGISTER ──
+function doRegister() {
+  const name  = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const pwd   = document.getElementById('regPwd').value;
+  const pwd2  = document.getElementById('regPwd2').value;
+  const agree = document.getElementById('agreeTerms').checked;
+
+  if (!name || !email || !pwd) { showToast('❌ 請填寫必要欄位'); return; }
+  if (pwd !== pwd2)            { showToast('❌ 密碼不一致');    return; }
+  if (!agree)                  { showToast('❌ 請同意服務條款'); return; }
+
+  const btn = document.querySelector('#registerPanel .submit-btn');
+  const orig = btn.textContent;
+  btn.textContent = '建立帳號中...'; btn.classList.add('loading');
+
+  setTimeout(() => {
+    btn.textContent = orig; btn.classList.remove('loading');
+    showProfile(name, email);
+    showToast('🎉 歡迎加入 TRBB！');
+  }, 1500);
+}
+
+// ── FORGOT ──
+function doForgot() {
+  const email = document.getElementById('forgotEmail').value.trim();
+  if (!email) { showToast('❌ 請輸入信箱'); return; }
+  showToast('✅ 重設信件已發送！請檢查信箱');
+  setTimeout(() => switchTab('login'), 1500);
+}
+
+// ── SHOW PROFILE ──
+function showProfile(name, email) {
+  document.getElementById('authWrap').style.display = 'none';
+  const pw = document.getElementById('profileWrap');
+  pw.style.display = 'flex';
+  document.getElementById('profileName').textContent = name;
+  document.getElementById('avatarEl').textContent = name.charAt(0);
+  // re-add badge
+  const badge = document.createElement('div');
+  badge.className = 'avatar-badge'; badge.textContent = '2';
+  document.getElementById('avatarEl').appendChild(badge);
+  showToast('✅ 登入成功，歡迎回來！');
+}
+
+// ── LOGOUT ──
+function doLogout() {
+  document.getElementById('profileWrap').style.display = 'none';
+  document.getElementById('authWrap').style.display = 'flex';
+  switchTab('login');
+  showToast('👋 已成功登出');
+}
+
+// ── IMPORT BIB ──
+function importBib() {
+  const bib = document.getElementById('bibInput').value.trim();
+  if (!bib) { showToast('❌ 請輸入號碼布號碼'); return; }
+  showToast(`🔍 查詢號碼 #${bib} 中...`);
+  setTimeout(() => showToast(`✅ 成績匯入成功！號碼 #${bib}`), 1800);
+}
+
+// ── GO HOME ──
+function goHome() { showToast('返回主站...'); }
+
+// ── TOAST ──
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 3000);
+}
 </script>
+
+<script>
+window.API_BASE = '/api/v1';
+
+async function api(path, options = {}) {
+    const token = localStorage.getItem('token');
+
+    const headers = {
+        'Content-Type': 'application/json',
+        ...(options.headers || {})
+    };
+
+    if (token) {
+        headers['Authorization'] = 'Bearer ' + token;
+    }
+
+    const res = await fetch(API_BASE + path, {
+        credentials: 'include',
+        ...options,
+        headers
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+        throw new Error(data.message || 'API request failed');
+    }
+
+    return data;
+}
+
+window.login = async function(email, password) {
+    const data = await api('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password })
+    });
+
+    if (data.token) {
+        localStorage.setItem('token', data.token);
+    }
+
+    return data;
+}
+
+window.registerMember = async function(payload) {
+    return await api('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+    });
+}
+
+window.loadProducts = async function() {
+    return await api('/products');
+}
+
+window.loadEvents = async function() {
+    return await api('/events');
+}
+</script>
+
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const loginBtn = document.querySelector('[data-login-btn]');
+    const registerBtn = document.querySelector('[data-register-btn]');
+
+    if (loginBtn) {
+        loginBtn.addEventListener('click', async () => {
+            const email = document.querySelector('input[type=email]')?.value;
+            const password = document.querySelector('input[type=password]')?.value;
+
+            try {
+                const result = await window.login(email, password);
+                alert('登入成功');
+                console.log(result);
+            } catch (e) {
+                alert('登入失敗：' + e.message);
+            }
+        });
+    }
+
+    if (registerBtn) {
+        registerBtn.addEventListener('click', async () => {
+            const inputs = document.querySelectorAll('input');
+            const payload = {
+                name: inputs[0]?.value || '',
+                email: inputs[1]?.value || '',
+                password: inputs[2]?.value || ''
+            };
+
+            try {
+                const result = await window.registerMember(payload);
+                alert('註冊成功');
+                console.log(result);
+            } catch (e) {
+                alert('註冊失敗：' + e.message);
+            }
+        });
+    }
+});
+</script>
+
 </body>
 </html>

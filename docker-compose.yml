@@ -8,9 +8,9 @@ services:
       - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./frontend:/var/www/frontend
-      - ./admin-site:/var/www/admin
-      - uploads_data:/var/www/uploads
+      - ./frontend:/usr/share/nginx/html/frontend
+      - ./admin-site:/usr/share/nginx/html/admin
+      - uploads_data:/usr/share/nginx/html/uploads
     depends_on:
       - backend
     restart: unless-stopped
