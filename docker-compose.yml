@@ -1,22 +1,42 @@
-version: '3.8'
-
 services:
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS}
+      MYSQL_DATABASE: sports_platform
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASS}
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./frontend:/usr/share/nginx/html/frontend
-      - ./admin-site:/usr/share/nginx/html/admin
-      - uploads_data:/usr/share/nginx/html/uploads
-    depends_on:
-      - backend
+      - mysql_data:/var/lib/mysql
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "3306:3306"
     restart: unless-stopped
 
-  backend:
-    build: ./backend
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    restart: unless-stopped
+
+  go:
+    build: ./api
     expose:
       - "8080"
     environment:
@@ -55,37 +75,18 @@ services:
       - redis
     restart: unless-stopped
 
-  mysql:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS}
-      MYSQL_DATABASE: sports_platform
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASS}
-    volumes:
-      - mysql_data:/var/lib/mysql
-      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+  nginx:
+    image: nginx:alpine
     ports:
-      - "127.0.0.1:3306:3306"
-    restart: unless-stopped
-
-  redis:
-    image: redis:7-alpine
+      - "80:80"
+      - "443:443"
     volumes:
-      - redis_data:/data
-    restart: unless-stopped
-
-  minio:
-    image: minio/minio
-    command: server /data --console-address ":9001"
-    ports:
-      - "127.0.0.1:9000:9000"
-      - "127.0.0.1:9001:9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
-    volumes:
-      - minio_data:/data
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./web:/usr/share/nginx/html/web
+      - ./admin:/usr/share/nginx/html/admin
+      - uploads_data:/usr/share/nginx/html/uploads
+    depends_on:
+      - api
     restart: unless-stopped
 
 volumes:
