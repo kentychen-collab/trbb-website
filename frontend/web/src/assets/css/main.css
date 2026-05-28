@@ -2,17 +2,17 @@
 
 /* ── CSS Variables ──────────────────────────────────────── */
 :root {
-  --color-bg:        #000000;
-  --color-bg-2:      #0a0a0a;
-  --color-bg-card:   #111111;
-  --color-bg-hover:  #1a1a1a;
-  --color-border:    #222222;
-  --color-primary:   #e5191a;   /* TRBB Red */
-  --color-primary-d: #b81415;
-  --color-white:     #ffffff;
-  --color-gray-1:    #cccccc;
-  --color-gray-2:    #888888;
-  --color-gray-3:    #444444;
+  --color-bg:        #ffffff;   /* 原本 #000000，改成白底 */
+  --color-bg-2:      #f5f5f5;   /* 原本 #0a0a0a */
+  --color-bg-card:   #f0f0f0;   /* 原本 #111111 */
+  --color-bg-hover:  #e8e8e8;   /* 原本 #1a1a1a */
+  --color-border:    #dddddd;   /* 原本 #222222 */
+  --color-primary:   #e5191a;   /* 不變，保留 TRBB 紅 */
+  --color-primary-d: #b81415;   /* 不變 */
+  --color-white:     #111111;   /* 原本 #ffffff，改成深色文字 */
+  --color-gray-1:    #333333;   /* 原本 #cccccc */
+  --color-gray-2:    #666666;   /* 原本 #888888 */
+  --color-gray-3:    #aaaaaa;   /* 原本 #444444 */
   --font-display:    'Bebas Neue', sans-serif;
   --font-body:       'Barlow', sans-serif;
   --font-cond:       'Barlow Condensed', sans-serif;
