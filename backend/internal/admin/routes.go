@@ -15,10 +15,15 @@ import (
 func RegisterRoutes(r *gin.RouterGroup, db *database.DB, rdb *cache.Cache,
 	minio *storage.Storage, cfg *config.Config, log *logger.Logger) {
 
-	userSvc  := services.NewUserService(db, cfg.App.SecretKey)
-	eventSvc := services.NewEventService(db)
-	userH    := adminHandlers.NewAdminUserHandler(userSvc)
-	eventH   := adminHandlers.NewAdminEventHandler(eventSvc)
+	userSvc   := services.NewUserService(db, cfg.App.SecretKey)
+	eventSvc  := services.NewEventService(db)
+	shopSvc      := services.NewShopService(db)
+	trainingSvc  := services.NewTrainingService(db, minio)
+	userH        := adminHandlers.NewAdminUserHandler(userSvc)
+	trainingH    := adminHandlers.NewAdminTrainingHandler(trainingSvc)
+	eventH    := adminHandlers.NewAdminEventHandler(eventSvc)
+	shopH     := adminHandlers.NewAdminShopHandler(shopSvc)
+	uploadH   := adminHandlers.NewUploadHandler(minio)
 
 	// ── Auth ────────────────────────────────────────────────
 	auth := r.Group("/auth")
@@ -68,12 +73,35 @@ func RegisterRoutes(r *gin.RouterGroup, db *database.DB, rdb *cache.Cache,
 			events.GET("/:id/registrations/export", eventH.ExportRegistrations)
 		}
 
+		// ── 訓練日記管理 ─────────────────────────────────────
+		training := a.Group("/training")
+		{
+			training.GET("",       trainingH.ListTraining)
+			training.GET("/stats", trainingH.Stats)
+			training.GET("/:id",   trainingH.GetTraining)
+		}
+
 		// ── TODO stubs ───────────────────────────────────────
-		a.GET("/products",       func(c *gin.Context) { c.JSON(501, gin.H{"msg": "TODO"}) })
-		a.POST("/products",      func(c *gin.Context) { c.JSON(501, gin.H{"msg": "TODO"}) })
-		a.GET("/orders",         func(c *gin.Context) { c.JSON(501, gin.H{"msg": "TODO"}) })
+		// 商品管理
+		products := a.Group("/products")
+		{
+			products.GET("",      shopH.ListProducts)
+			products.POST("",     shopH.CreateProduct)
+			products.GET("/:id",  shopH.GetProduct)
+			products.PUT("/:id",  shopH.UpdateProduct)
+			products.DELETE("/:id", shopH.DeleteProduct)
+		}
+
+		// 訂單管理
+		orders := a.Group("/orders")
+		{
+			orders.GET("",      shopH.ListOrders)
+			orders.GET("/:id",  shopH.GetOrder)
+			orders.PUT("/:id",  shopH.UpdateOrder)
+		}
 		a.GET("/announcements",  func(c *gin.Context) { c.JSON(501, gin.H{"msg": "TODO"}) })
 		a.POST("/announcements", func(c *gin.Context) { c.JSON(501, gin.H{"msg": "TODO"}) })
-		a.POST("/upload/image",  func(c *gin.Context) { c.JSON(501, gin.H{"msg": "TODO"}) })
+		// 圖片上傳
+		a.POST("/upload/image", uploadH.UploadImage)
 	}
 }

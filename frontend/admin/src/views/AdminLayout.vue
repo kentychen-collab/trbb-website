@@ -32,6 +32,9 @@
         <RouterLink to="/orders" class="nav-item" :class="{ active: route.path.startsWith('/orders') }">
           <span class="nav-icon">📦</span> 訂單管理
         </RouterLink>
+        <RouterLink to="/training" class="nav-item" :class="{ active: route.path.startsWith('/training') }">
+          <span class="nav-icon">📔</span> 訓練日記
+        </RouterLink>
 
         <div class="nav-section">內容</div>
         <RouterLink to="/announcements" class="nav-item" :class="{ active: route.path.startsWith('/announcements') }">
@@ -80,6 +83,7 @@ const pageTitles = {
   '/events': '賽事管理',
   '/products': '商品管理',
   '/orders': '訂單管理',
+  '/training': '訓練日記管理',
   '/announcements': '公告管理',
 }
 const pageTitle = computed(() => pageTitles[route.path] || 'TRBB Admin')

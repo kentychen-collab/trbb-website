@@ -118,6 +118,24 @@ func RequireRole(minRole int) gin.HandlerFunc {
 	}
 }
 
+// OptionalJWT — parses token if present but does not abort if missing
+func OptionalJWT(secret string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		tokenStr := extractToken(c)
+		if tokenStr != "" {
+			claims := jwt.MapClaims{}
+			token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
+				return []byte(secret), nil
+			})
+			if err == nil && token.Valid {
+				c.Set("user_id", claims["sub"])
+				c.Set("user_role", claims["role"])
+			}
+		}
+		c.Next()
+	}
+}
+
 func extractToken(c *gin.Context) string {
 	h := c.GetHeader("Authorization")
 	if strings.HasPrefix(h, "Bearer ") {

@@ -112,6 +112,47 @@
       </div>
     </section>
 
+    <!-- ── Public Training Feed ─────────────────────── -->
+    <section class="training-feed">
+      <div class="container">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="section-title">會員訓練動態</h2>
+          <RouterLink to="/training" class="btn btn-ghost">查看全部</RouterLink>
+        </div>
+
+        <div v-if="trainingLoading" class="events-loading">
+          <div class="loading-spinner"></div>
+        </div>
+        <div v-else-if="!trainingLogs.length" class="events-empty">
+          <p>目前沒有公開的訓練記錄</p>
+        </div>
+        <div v-else class="training-grid">
+          <RouterLink v-for="log in trainingLogs" :key="log.id"
+            :to="`/training/${log.id}`" class="training-card card">
+            <!-- 封面照片 or 地圖佔位 -->
+            <div class="training-cover" :class="`sport-${log.sport_type}`">
+              <img v-if="log.photos && log.photos.length"
+                :src="imgUrl(log.photos[0])" :alt="log.title" class="cover-img" />
+              <div v-else class="cover-icon">{{ sportIcon(log.sport_type) }}</div>
+              <span class="sport-badge">{{ sportLabel(log.sport_type) }}</span>
+            </div>
+            <div class="training-body">
+              <div class="training-meta text-gray text-sm">
+                <span>{{ log.display_name || log.username }}</span>
+                <span>{{ log.date }}</span>
+              </div>
+              <h3 class="training-title">{{ log.title }}</h3>
+              <div class="training-stats">
+                <span v-if="log.distance_km">📏 {{ Number(log.distance_km).toFixed(2) }} km</span>
+                <span v-if="log.duration_min">⏱ {{ fmtDuration(log.duration_min) }}</span>
+                <span v-if="log.avg_heart_rate">❤️ {{ log.avg_heart_rate }} bpm</span>
+              </div>
+            </div>
+          </RouterLink>
+        </div>
+      </div>
+    </section>
+
     <!-- ── Garmin Banner ─────────────────────────────── -->
     <section class="garmin-banner">
       <div class="container garmin-inner">
@@ -176,8 +217,10 @@ import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 
 const auth = useAuthStore()
-const latestEvents = ref([])
-const eventsLoading = ref(true)
+const latestEvents  = ref([])
+const eventsLoading  = ref(true)
+const trainingLogs   = ref([])
+const trainingLoading = ref(true)
 
 // 載入最新 3 筆已發布賽事
 async function fetchLatestEvents() {
@@ -193,6 +236,19 @@ async function fetchLatestEvents() {
   }
 }
 
+async function fetchTrainingLogs() {
+  trainingLoading.value = true
+  try {
+    const { data } = await api.get('/training', { params: { page: 1, page_size: 6 } })
+    trainingLogs.value = data.logs || []
+  } catch(e) {
+    console.error('fetchTrainingLogs error', e)
+    trainingLogs.value = []
+  } finally {
+    trainingLoading.value = false
+  }
+}
+
 // ── Helpers ───────────────────────────────────────────────
 const typeMap  = { 1:'鐵人三項', 2:'路跑', 3:'游泳', 4:'單車', 5:'訓練', 6:'其他' }
 const typeIcon = { 1:'🏊', 2:'🏃', 3:'🏊', 4:'🚴', 5:'💪', 6:'🏅' }
@@ -201,6 +257,20 @@ function eventTypeIcon(t)  { return typeIcon[t] || '🏅' }
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit' })
+}
+
+function imgUrl(path) {
+  const base = import.meta.env.VITE_IMAGE_BASE_URL || ''
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  return `${base}/images/${path}`
+}
+function sportIcon(t) { return { 1:'🏃', 2:'🏊', 3:'🚴', 4:'🏅', 5:'💪', 6:'🏋️' }[t] || '🏅' }
+function sportLabel(t) { return { 1:'路跑', 2:'游泳', 3:'單車', 4:'鐵人', 5:'重訓', 6:'其他' }[t] || '其他' }
+function fmtDuration(min) {
+  if (!min) return ''
+  const h = Math.floor(min / 60), m = min % 60
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
 }
 
 function isRegOpen(ev) {
@@ -230,7 +300,7 @@ const features = [
   { icon: '🏅', title: '會員制度', desc: '分級會員系統，解鎖專屬訓練計畫、折扣及優先報名資格。' },
 ]
 
-onMounted(fetchLatestEvents)
+onMounted(() => { fetchLatestEvents(); fetchTrainingLogs() })
 </script>
 
 <style scoped>
@@ -331,4 +401,22 @@ onMounted(fetchLatestEvents)
 .footer-col li { margin-bottom: 0.5rem; }
 .footer-col a { color: var(--color-gray-1); font-size: 0.9rem; }
 .footer-col a:hover { color: var(--color-primary); }
+.training-feed { padding:4rem 0; background:var(--color-bg-2); }
+/* Training grid */
+.training-grid { display:grid; gap:1.25rem; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); }
+.training-card { display:block; background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:8px; overflow:hidden; transition:all .2s; }
+.training-card:hover { border-color:var(--color-primary); transform:translateY(-3px); box-shadow:0 6px 24px rgba(229,25,26,.12); }
+.training-cover { height:140px; display:flex; align-items:center; justify-content:center; position:relative; }
+.sport-1 { background:linear-gradient(135deg,#1a1a2e,#2d1b4e); }
+.sport-2 { background:linear-gradient(135deg,#0a1628,#0e3460); }
+.sport-3 { background:linear-gradient(135deg,#1a1a1a,#2d2000); }
+.sport-4 { background:linear-gradient(135deg,#0d1a0d,#1a3a1a); }
+.sport-5, .sport-6 { background:linear-gradient(135deg,#1a0d0d,#3a1a1a); }
+.cover-img { width:100%; height:100%; object-fit:cover; position:absolute; inset:0; }
+.cover-icon { font-size:3rem; position:relative; z-index:1; }
+.sport-badge { position:absolute; bottom:.5rem; left:.5rem; font-family:var(--font-cond); font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:.15rem .5rem; background:rgba(0,0,0,.6); border-radius:3px; color:#fff; }
+.training-body { padding:1rem; }
+.training-meta { display:flex; justify-content:space-between; margin-bottom:.35rem; }
+.training-title { font-size:.95rem; font-weight:700; line-height:1.4; margin-bottom:.4rem; }
+.training-stats { display:flex; gap:.75rem; flex-wrap:wrap; font-size:.78rem; color:var(--color-gray-2); }
 </style>

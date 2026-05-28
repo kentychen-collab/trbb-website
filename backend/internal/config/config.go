@@ -46,6 +46,7 @@ type MinioConfig struct {
 	UseSSL      bool
 	BucketPublic  string
 	BucketPrivate string
+	BucketImages  string
 	ExternalURL string
 }
 
@@ -146,6 +147,7 @@ func Load() *Config {
 			UseSSL:        getEnv("MINIO_USE_SSL", "false") == "true",
 			BucketPublic:  getEnv("MINIO_BUCKET_PUBLIC", "trbb-public"),
 			BucketPrivate: getEnv("MINIO_BUCKET_PRIVATE", "trbb-private"),
+			BucketImages:  getEnv("MINIO_BUCKET_IMAGES", "images"),
 			ExternalURL:   getEnv("MINIO_EXTERNAL_URL", ""),
 		},
 		Log: LogConfig{

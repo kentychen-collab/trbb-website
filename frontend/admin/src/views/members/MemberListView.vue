@@ -45,6 +45,7 @@
           <thead>
             <tr>
               <th>會員</th>
+              <th>姓名</th>
               <th>Email / 手機</th>
               <th>狀態</th>
               <th>申請時間</th>
@@ -56,11 +57,14 @@
               <td>
                 <div class="user-cell">
                   <div class="avatar">{{ (u.display_name || u.username)[0] }}</div>
-                  <div>
-                    <div class="fw-bold">{{ u.display_name || u.name_zh }}</div>
-                    <div class="text-gray text-xs">@{{ u.username }}</div>
-                  </div>
+                  <div class="text-xs text-gray">@{{ u.username }}</div>
                 </div>
+              </td>
+              <td>
+                <div v-if="u.name_zh" class="fw-bold">{{ u.name_zh }}</div>
+                <div v-if="u.name_en" class="text-gray text-xs">{{ u.name_en }}</div>
+                <div v-if="u.display_name && u.display_name !== u.name_zh && u.display_name !== u.name_en"
+                  class="text-gray text-xs">（{{ u.display_name }}）</div>
               </td>
               <td>
                 <div>{{ u.email }}</div>
@@ -88,20 +92,22 @@
       </div>
     </div>
 
-    <!-- Edit / Create Modal -->
+    <!-- Create / Edit Modal -->
     <div class="modal-overlay" v-if="editingUser || showCreate" @click.self="closeModal">
       <div class="edit-modal">
         <div class="modal-header">
-          <h3>{{ showCreate ? '新增會員' : '編輯會員資料' }}</h3>
+          <h3>{{ showCreate ? '新增會員' : '編輯會員' }}</h3>
           <button @click="closeModal">✕</button>
         </div>
         <div class="modal-body">
-          <!-- Create 額外欄位 -->
+
+          <!-- 新增專用欄位 -->
           <template v-if="showCreate">
+            <div class="section-label">帳號資訊</div>
             <div class="form-row">
               <div class="form-group">
                 <label>會員 ID <span class="req">*</span></label>
-                <input v-model="editForm.username" placeholder="英數字 3~50" />
+                <input v-model="editForm.username" placeholder="英數字及底線，3~50" />
               </div>
               <div class="form-group">
                 <label>Email <span class="req">*</span></label>
@@ -114,7 +120,8 @@
             </div>
           </template>
 
-          <!-- 共用欄位 -->
+          <!-- 共用：姓名 -->
+          <div class="section-label">姓名資料</div>
           <div class="form-row">
             <div class="form-group">
               <label>顯示名稱</label>
@@ -122,9 +129,16 @@
             </div>
             <div class="form-group">
               <label>中文姓名</label>
-              <input v-model="editForm.name_zh" placeholder="真實姓名" />
+              <input v-model="editForm.name_zh" placeholder="真實中文姓名" />
             </div>
           </div>
+          <div class="form-group mb-1">
+            <label>英文姓名</label>
+            <input v-model="editForm.name_en" placeholder="English Name" />
+          </div>
+
+          <!-- 個人資訊 -->
+          <div class="section-label">個人資訊</div>
           <div class="form-row">
             <div class="form-group">
               <label>手機</label>
@@ -142,6 +156,29 @@
           </div>
           <div class="form-row">
             <div class="form-group">
+              <label>出生年月日</label>
+              <input v-model="editForm.birthday" type="date" />
+            </div>
+            <div class="form-group">
+              <label>身份證字號</label>
+              <input v-model="editForm.id_number" placeholder="A123456789" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>護照號碼</label>
+              <input v-model="editForm.passport_number" />
+            </div>
+            <div class="form-group">
+              <label>通訊地址</label>
+              <input v-model="editForm.address" />
+            </div>
+          </div>
+
+          <!-- 偏好 -->
+          <div class="section-label">偏好設定</div>
+          <div class="form-row">
+            <div class="form-group">
               <label>衣服尺寸</label>
               <select v-model="editForm.shirt_size">
                 <option value="">-</option>
@@ -149,31 +186,36 @@
               </select>
             </div>
             <div class="form-group">
-              <label>飲食</label>
+              <label>飲食習慣</label>
               <select v-model="editForm.food_type">
                 <option :value="null">-</option>
                 <option :value="1">葷</option><option :value="2">素</option><option :value="3">全素</option>
               </select>
             </div>
           </div>
-          <div class="form-group mb-1">
-            <label>通訊地址</label>
-            <input v-model="editForm.address" />
-          </div>
+
+          <!-- 緊急聯絡人 -->
+          <div class="section-label">緊急聯絡人</div>
           <div class="form-row">
             <div class="form-group">
-              <label>緊急聯絡人</label>
+              <label>聯絡人姓名</label>
               <input v-model="editForm.emergency_contact" />
             </div>
             <div class="form-group">
-              <label>緊急聯絡電話</label>
+              <label>聯絡人手機</label>
               <input v-model="editForm.emergency_phone" />
             </div>
+          </div>
+          <div class="form-group mb-1">
+            <label>與本人關係</label>
+            <input v-model="editForm.emergency_relation" placeholder="例如：配偶、父母、朋友等" />
           </div>
 
           <!-- 修改密碼（編輯時） -->
           <template v-if="!showCreate">
-            <div class="form-divider">修改密碼（留空不修改）</div>
+            <div class="section-label" style="border-top:1px solid var(--border);margin-top:.5rem;padding-top:.75rem">
+              修改密碼（留空不修改）
+            </div>
             <div class="form-group mb-1">
               <label>新密碼</label>
               <input v-model="editForm.new_password" type="password" placeholder="至少 8 字元，留空不修改" />
@@ -215,9 +257,12 @@ const quickStats = ref([
 ])
 
 const emptyForm = () => ({
-  username:'', email:'', password:'', display_name:'', name_zh:'',
-  phone:'', gender:null, shirt_size:'', food_type:null,
-  address:'', emergency_contact:'', emergency_phone:'',
+  username:'', email:'', password:'',
+  display_name:'', name_zh:'', name_en:'',
+  phone:'', gender:null, birthday:'',
+  id_number:'', passport_number:'', address:'',
+  shirt_size:'', food_type:null,
+  emergency_contact:'', emergency_phone:'', emergency_relation:'',
   new_password:'',
 })
 const editForm = reactive(emptyForm())
@@ -264,11 +309,14 @@ function openCreate() {
 function openEdit(u) {
   Object.assign(editForm, {
     username: u.username, email: u.email, password: '',
-    display_name: u.display_name || '', name_zh: u.name_zh || '',
-    phone: u.phone || '', gender: u.gender, shirt_size: u.shirt_size || '',
-    food_type: u.food_type, address: u.address || '',
+    display_name: u.display_name || '', name_zh: u.name_zh || '', name_en: u.name_en || '',
+    phone: u.phone || '', gender: u.gender, birthday: u.birthday || '',
+    id_number: u.id_number || '', passport_number: u.passport_number || '',
+    address: u.address || '',
+    shirt_size: u.shirt_size || '', food_type: u.food_type,
     emergency_contact: u.emergency_contact || '',
     emergency_phone: u.emergency_phone || '',
+    emergency_relation: u.emergency_relation || '',
     new_password: '',
   })
   editingUser.value = u
@@ -288,17 +336,13 @@ async function saveModal() {
       await api.post('/members', {
         username: editForm.username, email: editForm.email,
         password: editForm.password,
-        display_name: editForm.display_name || editForm.name_zh,
+        display_name: editForm.display_name || editForm.name_zh || editForm.name_en || editForm.username,
         phone: editForm.phone,
       })
     } else {
-      // 更新資料
       await api.put(`/members/${editingUser.value.id}/profile`, editForm)
-      // 如果有填新密碼
       if (editForm.new_password) {
-        if (editForm.new_password.length < 8) {
-          modalError.value = '密碼至少 8 字元'; return
-        }
+        if (editForm.new_password.length < 8) { modalError.value = '密碼至少 8 字元'; return }
         await api.put(`/members/${editingUser.value.id}/password`, { password: editForm.new_password })
       }
     }
@@ -330,8 +374,8 @@ onMounted(fetchUsers)
 .stat-chip.active .stat-chip-num { color:var(--primary); }
 .stat-chip-num { font-family:var(--font-c); font-size:1.2rem; font-weight:700; }
 .stat-chip-label { font-size:.78rem; color:var(--gray-2); }
-.user-cell { display:flex; align-items:center; gap:.75rem; }
-.avatar { width:36px; height:36px; border-radius:50%; flex-shrink:0; background:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.9rem; }
+.user-cell { display:flex; flex-direction:column; gap:.2rem; }
+.avatar { width:28px; height:28px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.8rem; margin-bottom:.2rem; }
 .fw-bold { font-weight:600; font-size:.9rem; }
 .text-xs { font-size:.75rem; }
 .action-btns { display:flex; gap:.4rem; flex-wrap:wrap; }
@@ -339,19 +383,20 @@ onMounted(fetchUsers)
 .btn-danger:hover { opacity:.85; }
 .loading-row { padding:3rem; text-align:center; color:var(--gray-2); }
 .pagination { display:flex; align-items:center; justify-content:center; gap:1rem; padding:1rem; border-top:1px solid var(--border); }
+
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.75); z-index:100; display:flex; align-items:center; justify-content:center; padding:1rem; }
-.edit-modal { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:100%; max-width:560px; max-height:90vh; overflow-y:auto; }
+.edit-modal { background:var(--bg-card); border:1px solid var(--border); border-radius:8px; width:100%; max-width:600px; max-height:92vh; overflow-y:auto; }
 .modal-header { display:flex; align-items:center; justify-content:space-between; padding:1.25rem 1.5rem; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--bg-card); }
 .modal-header h3 { font-family:var(--font-c); font-size:1.1rem; font-weight:700; }
 .modal-header button { background:none; border:none; color:var(--gray-2); font-size:1.2rem; cursor:pointer; }
 .modal-body { padding:1.5rem; }
+.section-label { font-size:.7rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--gray-2); margin:.75rem 0 .5rem; }
 .form-row { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; margin-bottom:.75rem; }
 .form-group { display:flex; flex-direction:column; gap:.3rem; }
 .form-group.mb-1 { margin-bottom:.75rem; }
 .form-group label { font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--gray-1); }
 .form-group input, .form-group select { width:100%; }
 .req { color:var(--primary); }
-.form-divider { font-size:.72rem; font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:var(--gray-2); border-top:1px solid var(--border); padding-top:.75rem; margin:1rem 0 .75rem; }
 .form-error { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3); border-radius:4px; color:#fca5a5; font-size:.83rem; padding:.5rem .75rem; }
 .modal-footer { display:flex; gap:.75rem; margin-top:1.25rem; padding-top:1rem; border-top:1px solid var(--border); }
 .mt-1 { margin-top:.5rem; }

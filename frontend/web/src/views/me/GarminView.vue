@@ -1,9 +1,240 @@
 <template>
-  <div class="page container" style="padding-top:80px;min-height:100vh">
-    <h1 class="section-title" style="margin-top:2rem">{{ title }}</h1>
-    <p class="text-gray">— 功能開發中 —</p>
+  <div class="garmin-page">
+    <h1 class="section-title">Garmin 串接</h1>
+    <p class="text-gray" style="margin-bottom:2rem">
+      連結您的 Garmin Connect 帳號，自動將訓練資料匯入訓練日記。
+    </p>
+
+    <!-- ── 連結狀態卡片 ──────────────────────────────── -->
+    <div class="status-card card">
+      <div class="status-left">
+        <div class="garmin-logo">⌚</div>
+        <div class="status-info">
+          <div class="status-title">
+            <span v-if="garminStatus === 'connected'" class="dot connected"></span>
+            <span v-else-if="garminStatus === 'loading'" class="dot"></span>
+            <span v-else class="dot disconnected"></span>
+            {{ statusTitle }}
+          </div>
+          <div class="status-sub text-gray">
+            {{ statusSub }}
+          </div>
+          <div v-if="tokenInfo" class="token-meta text-gray">
+            <span>Garmin 帳號 ID：{{ tokenInfo.garmin_user_id || '—' }}</span>
+            <span v-if="tokenInfo.last_sync_at">
+              　上次同步：{{ fmt(tokenInfo.last_sync_at) }}
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="status-actions">
+        <template v-if="garminStatus === 'connected'">
+          <button class="btn btn-primary btn-sm" @click="syncNow" :disabled="syncing">
+            {{ syncing ? '同步中...' : '🔄 立即同步' }}
+          </button>
+          <button class="btn btn-ghost btn-sm" @click="confirmDisconnect">解除連結</button>
+        </template>
+        <template v-else-if="garminStatus === 'disconnected'">
+          <button class="btn btn-primary" @click="connectGarmin" :disabled="connecting">
+            <span v-if="connecting" class="spinner"></span>
+            {{ connecting ? '連接中...' : '連結 Garmin Connect' }}
+          </button>
+        </template>
+        <template v-else-if="garminStatus === 'unavailable'">
+          <div class="unavail-badge">Garmin API 憑證未設定</div>
+        </template>
+      </div>
+    </div>
+
+    <!-- ── 同步結果 ───────────────────────────────────── -->
+    <div v-if="syncResult" class="sync-result" :class="syncResult.ok ? 'ok' : 'err'">
+      {{ syncResult.ok ? `✓ 已匯入 ${syncResult.count} 筆訓練資料` : `✗ ${syncResult.msg}` }}
+    </div>
+
+    <!-- ── 說明卡片 ───────────────────────────────────── -->
+    <div class="info-cards">
+      <div class="info-card card">
+        <div class="info-icon">🔐</div>
+        <h4>OAuth 授權</h4>
+        <p>透過 Garmin 官方 OAuth 1.0a 授權，TRBB 只能讀取活動資料，不會存取您的帳號密碼。</p>
+      </div>
+      <div class="info-card card">
+        <div class="info-icon">📊</div>
+        <h4>同步的資料</h4>
+        <p>距離、時間、配速、心率、海拔、卡路里、GPS 路線等訓練數據。</p>
+      </div>
+      <div class="info-card card">
+        <div class="info-icon">🔄</div>
+        <h4>自動同步</h4>
+        <p>連結後每次訓練完成 Garmin 上傳，即可在 TRBB 訓練日記自動顯示。</p>
+      </div>
+    </div>
+
+    <!-- ── 申請進度（顯示 API 狀態）────────────────────── -->
+    <div class="apply-section card">
+      <h3 class="apply-title">Garmin Health API 申請進度</h3>
+      <div class="apply-steps">
+        <div class="apply-step done">
+          <span class="step-icon">✅</span>
+          <div><strong>技術框架建置</strong><br><span class="text-gray">OAuth 1.0a 流程、Token 儲存、資料同步架構已就緒</span></div>
+        </div>
+        <div class="apply-step" :class="apiConfigured ? 'done' : 'pending'">
+          <span class="step-icon">{{ apiConfigured ? '✅' : '⏳' }}</span>
+          <div>
+            <strong>Garmin Developer Partner 申請</strong><br>
+            <span class="text-gray">
+              {{ apiConfigured ? 'API 憑證已設定' : '申請網址：developer.garmin.com/health-api' }}
+            </span>
+          </div>
+        </div>
+        <div class="apply-step" :class="apiConfigured ? 'pending' : 'disabled'">
+          <span class="step-icon">{{ apiConfigured ? '⏳' : '⭕' }}</span>
+          <div><strong>填入 GARMIN_CLIENT_ID / CLIENT_SECRET</strong><br>
+            <span class="text-gray">於伺服器 backend/.env 設定後重啟後端即可啟用</span></div>
+        </div>
+        <div class="apply-step disabled">
+          <span class="step-icon">⭕</span>
+          <div><strong>上線使用</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 替代方案 ──────────────────────────────────── -->
+    <div class="alt-section card">
+      <h3>現在可用：手動上傳 GPX / FIT</h3>
+      <p class="text-gray">等待 Garmin API 審核期間，可先從 Garmin Connect 匯出 .gpx 或 .fit 檔案，手動上傳至訓練日記。</p>
+      <RouterLink to="/me/training" class="btn btn-primary" style="margin-top:1rem">前往訓練日記</RouterLink>
+    </div>
   </div>
 </template>
+
 <script setup>
-const title = document.title
+import { ref, computed, onMounted } from 'vue'
+import { RouterLink } from 'vue-router'
+import api from '@/services/api'
+
+const garminStatus = ref('loading') // loading | connected | disconnected | unavailable
+const tokenInfo    = ref(null)
+const connecting   = ref(false)
+const syncing      = ref(false)
+const syncResult   = ref(null)
+const apiConfigured = ref(false)
+
+const statusTitle = computed(() => ({
+  loading:      '檢查連結狀態中...',
+  connected:    'Garmin Connect 已連結',
+  disconnected: 'Garmin Connect 尚未連結',
+  unavailable:  'Garmin API 設定中',
+}[garminStatus.value] || ''))
+
+const statusSub = computed(() => ({
+  loading:      '',
+  connected:    '訓練資料將自動同步至日記',
+  disconnected: '連結後可自動匯入 Garmin 訓練資料',
+  unavailable:  '管理員尚未設定 Garmin API 憑證，串接功能暫時無法使用',
+}[garminStatus.value] || ''))
+
+async function checkStatus() {
+  try {
+    const { data } = await api.get('/me/garmin/status')
+    if (data.connected) {
+      garminStatus.value = 'connected'
+      tokenInfo.value = data
+    } else {
+      garminStatus.value = data.api_configured === false ? 'unavailable' : 'disconnected'
+      apiConfigured.value = data.api_configured !== false
+    }
+  } catch {
+    garminStatus.value = 'disconnected'
+  }
+}
+
+async function connectGarmin() {
+  connecting.value = true
+  try {
+    const { data } = await api.get('/me/garmin/connect')
+    if (data.auth_url) {
+      // Redirect to Garmin OAuth page
+      window.location.href = data.auth_url
+    } else {
+      // API not yet configured
+      garminStatus.value = 'unavailable'
+    }
+  } catch(e) {
+    alert(e.response?.data?.error || '連結失敗')
+  } finally {
+    connecting.value = false
+  }
+}
+
+async function syncNow() {
+  syncing.value = true
+  syncResult.value = null
+  try {
+    const { data } = await api.post('/training/garmin/sync')
+    syncResult.value = { ok: true, count: data.count || 0 }
+    await checkStatus()
+  } catch(e) {
+    syncResult.value = { ok: false, msg: e.response?.data?.error || '同步失敗' }
+  } finally {
+    syncing.value = false
+  }
+}
+
+function confirmDisconnect() {
+  if (!confirm('確認解除 Garmin Connect 連結？\n已匯入的訓練資料不會刪除。')) return
+  api.delete('/me/garmin/disconnect').then(() => {
+    garminStatus.value = 'disconnected'
+    tokenInfo.value = null
+  }).catch(() => alert('解除失敗'))
+}
+
+function fmt(d) {
+  return d ? new Date(d).toLocaleString('zh-TW', {
+    year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit'
+  }) : '-'
+}
+
+onMounted(checkStatus)
 </script>
+
+<style scoped>
+.garmin-page { max-width:700px; }
+.status-card { padding:1.5rem; display:flex; justify-content:space-between; align-items:center; gap:1.5rem; flex-wrap:wrap; margin-bottom:1rem; }
+.status-left { display:flex; align-items:center; gap:1.25rem; }
+.garmin-logo { font-size:3rem; flex-shrink:0; }
+.status-title { font-size:1.05rem; font-weight:700; display:flex; align-items:center; gap:.5rem; margin-bottom:.25rem; }
+.dot { width:10px; height:10px; border-radius:50%; background:var(--color-gray-2); display:inline-block; }
+.dot.connected { background:#22c55e; box-shadow:0 0 6px rgba(34,197,94,.5); }
+.dot.disconnected { background:#9ca3af; }
+.token-meta { font-size:.78rem; margin-top:.35rem; display:flex; flex-wrap:wrap; gap:.75rem; }
+.status-actions { display:flex; flex-direction:column; gap:.5rem; align-items:flex-end; }
+.unavail-badge { font-size:.75rem; padding:.3rem .8rem; background:rgba(245,158,11,.1); color:#f59e0b; border:1px solid rgba(245,158,11,.3); border-radius:4px; }
+.btn-sm { padding:.4rem 1rem; font-size:.82rem; }
+
+.sync-result { padding:.65rem 1rem; border-radius:6px; font-size:.88rem; margin-bottom:1rem; }
+.sync-result.ok  { background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.3); color:#86efac; }
+.sync-result.err { background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.3); color:#fca5a5; }
+
+.info-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:1rem; margin-bottom:1.25rem; }
+.info-card { padding:1.25rem; }
+.info-icon { font-size:1.8rem; margin-bottom:.6rem; }
+.info-card h4 { font-size:.95rem; margin-bottom:.35rem; }
+.info-card p { font-size:.82rem; color:var(--color-gray-2); line-height:1.6; }
+
+.apply-section { padding:1.5rem; margin-bottom:1.25rem; }
+.apply-title { font-size:1rem; font-weight:700; margin-bottom:1.25rem; }
+.apply-steps { display:flex; flex-direction:column; gap:.85rem; }
+.apply-step { display:flex; align-items:flex-start; gap:.9rem; font-size:.88rem; }
+.apply-step strong { font-size:.9rem; }
+.step-icon { font-size:1.1rem; flex-shrink:0; margin-top:.05rem; }
+.apply-step.pending { opacity:.7; }
+.apply-step.disabled { opacity:.4; }
+.apply-step.done { opacity:1; }
+
+.alt-section { padding:1.5rem; }
+.alt-section h3 { font-size:1rem; margin-bottom:.5rem; }
+
+.spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:inline-block; }
+@keyframes spin { to { transform:rotate(360deg) } }
+</style>

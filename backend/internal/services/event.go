@@ -269,20 +269,20 @@ func (s *EventService) Delete(ctx context.Context, id uint64) error {
 // ── Register ──────────────────────────────────────────────────
 
 type RegistrationInput struct {
-	NameZh            string `json:"name_zh"            binding:"required"`
+	NameZh            string `json:"name_zh"`
 	NameEn            string `json:"name_en"`
 	IDNumber          string `json:"id_number"`
 	PassportNumber    string `json:"passport_number"`
 	Gender            *int   `json:"gender"`
 	Birthday          string `json:"birthday"`
-	Phone             string `json:"phone"              binding:"required"`
-	Email             string `json:"email"              binding:"required,email"`
+	Phone             string `json:"phone"  binding:"required"`
+	Email             string `json:"email"  binding:"required,email"`
 	ShirtSize         string `json:"shirt_size"`
 	FoodType          *int   `json:"food_type"`
 	Address           string `json:"address"`
-	EmergencyContact  string `json:"emergency_contact"  binding:"required"`
-	EmergencyPhone    string `json:"emergency_phone"    binding:"required"`
-	EmergencyRelation string `json:"emergency_relation" binding:"required"`
+	EmergencyContact  string `json:"emergency_contact"`
+	EmergencyPhone    string `json:"emergency_phone"`
+	EmergencyRelation string `json:"emergency_relation"`
 	Note              string `json:"note"`
 }
 

@@ -37,11 +37,21 @@ func NewUserService(db *database.DB, jwtSecret string) *UserService {
 // ── Register ─────────────────────────────────────────────────
 
 type RegisterInput struct {
-	Username    string `json:"username"     binding:"required,min=3,max=50"`
-	DisplayName string `json:"display_name" binding:"required,min=2,max=50"`
-	Email       string `json:"email"        binding:"required,email"`
-	Phone       string `json:"phone"        binding:"required,min=8,max=20"`
-	Password    string `json:"password"     binding:"required,min=8"`
+	Username string `json:"username" binding:"required,min=3,max=50"`
+	RealName string `json:"real_name" binding:"required,min=1,max=100"`
+	Email    string `json:"email"    binding:"required,email"`
+	Phone    string `json:"phone"    binding:"required,min=8,max=20"`
+	Password string `json:"password" binding:"required,min=8"`
+}
+
+// isChinese returns true if s contains any CJK character
+func isChinese(s string) bool {
+	for _, r := range s {
+		if r >= 0x4E00 && r <= 0x9FFF {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *UserService) Register(ctx context.Context, in RegisterInput) (*models.User, error) {
@@ -70,11 +80,21 @@ func (s *UserService) Register(ctx context.Context, in RegisterInput) (*models.U
 	uid := uuid.New().String()
 	now := time.Now()
 
+	// 依姓名語言自動分配至 name_zh / name_en
+	var nameZh, nameEn, displayName string
+	if isChinese(in.RealName) {
+		nameZh = in.RealName
+	} else {
+		nameEn = in.RealName
+	}
+	displayName = in.RealName // display_name 直接用真實姓名
+
 	res, err := s.db.ExecContext(ctx, `
 		INSERT INTO users
-		  (uuid,username,email,phone,password_hash,display_name,role,status,created_at,updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?)`,
-		uid, in.Username, in.Email, in.Phone, string(hash), in.DisplayName,
+		  (uuid,username,email,phone,password_hash,display_name,name_zh,name_en,role,status,created_at,updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+		uid, in.Username, in.Email, in.Phone, string(hash),
+		displayName, nullStr(nameZh), nullStr(nameEn),
 		models.RoleMember, models.StatusPending, now, now,
 	)
 	if err != nil {
@@ -83,7 +103,8 @@ func (s *UserService) Register(ctx context.Context, in RegisterInput) (*models.U
 	id, _ := res.LastInsertId()
 	return &models.User{
 		ID: uint64(id), UUID: uid, Username: in.Username,
-		Email: in.Email, Phone: in.Phone, DisplayName: in.DisplayName,
+		Email: in.Email, Phone: in.Phone, DisplayName: displayName,
+		NameZh: nameZh, NameEn: nameEn,
 		Role: models.RoleMember, Status: models.StatusPending,
 		CreatedAt: now, UpdatedAt: now,
 	}, nil

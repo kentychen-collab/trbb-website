@@ -147,13 +147,10 @@
               <label>人數上限（留空不限）</label>
               <input v-model.number="form.max_participants" type="number" min="1" placeholder="不限" />
             </div>
-            <!-- 封面圖 -->
+            <!-- 封面圖片上傳 -->
             <div class="form-group full">
-              <label>封面圖片 URL</label>
-              <input v-model="form.cover_url" placeholder="https://..." />
-              <div v-if="form.cover_url" class="cover-preview">
-                <img :src="form.cover_url" alt="cover" @error="form.cover_url=''" />
-              </div>
+              <label>封面圖片</label>
+              <ImageUpload v-model="form.cover_path" folder="events" />
             </div>
             <!-- 是否公開 — 用 toggle 切換 -->
             <div class="form-group full">
@@ -205,9 +202,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import api from '@/services/api'
+import ImageUpload from '@/components/ImageUpload.vue'
 
 const events = ref([])
 const loading = ref(false)
@@ -237,7 +235,7 @@ function emptyForm() {
   const today = todayStr()
   return {
     title: '', description: '', event_type: 1, location: '',
-    cover_url: '', fee: 0, max_participants: null,
+    cover_url: '', cover_path: '', fee: 0, max_participants: null,
     status: 1,           // 預設「已發布」
     start_at_str:     today,
     end_at_str:       today,
@@ -277,7 +275,7 @@ function openEdit(ev) {
   Object.assign(form, {
     title: ev.title, description: ev.description || '',
     event_type: ev.event_type, location: ev.location,
-    cover_url: ev.cover_url || '',
+    cover_url: ev.cover_url || '', cover_path: ev.cover_url || '',
     fee: ev.fee, max_participants: ev.max_participants, status: ev.status,
     start_at_str:     toLocal(ev.start_at),
     end_at_str:       toLocal(ev.end_at),
@@ -303,7 +301,12 @@ async function submitForm() {
     description: form.description,
     event_type:  form.event_type,
     location:    form.location,
-    cover_url:   form.cover_url,
+    // cover_path 是 objectPath（如 "events/xxx.jpg"），組合成完整 URL
+    cover_url: form.cover_path
+      ? (form.cover_path.startsWith('http')
+          ? form.cover_path
+          : `${import.meta.env.VITE_IMAGE_BASE_URL}/images/${form.cover_path}`)
+      : '',
     fee:         form.fee || 0,
     max_participants: form.max_participants || null,
     status:      form.status,

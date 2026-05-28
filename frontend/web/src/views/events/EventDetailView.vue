@@ -296,12 +296,8 @@ async function openRegModal() {
 
 async function submitReg() {
   regError.value = ''
-  if (!form.name_zh) { regError.value = '請填寫中文姓名'; return }
   if (!form.phone)   { regError.value = '請填寫手機號碼'; return }
   if (!form.email)   { regError.value = '請填寫 Email'; return }
-  if (!form.emergency_contact || !form.emergency_phone || !form.emergency_relation) {
-    regError.value = '請填寫緊急聯絡人資料'; return
-  }
   regLoading.value = true
   try {
     await api.post(`/events/${route.params.id}/register`, form)

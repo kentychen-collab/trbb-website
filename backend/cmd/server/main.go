@@ -64,7 +64,7 @@ func main() {
 	v1 := r.Group("/v1")
 	api.RegisterRoutes(v1.Group("/api"), db, rdb, minio, cfg, log)
 	admin.RegisterRoutes(v1.Group("/admin"), db, rdb, minio, cfg, log)
-	third.RegisterRoutes(v1.Group("/third"), db, rdb, cfg, log)
+	third.RegisterRoutes(v1.Group("/third"), db, minio, cfg, log)
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {
