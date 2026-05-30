@@ -11,28 +11,6 @@
       </div>
     </div>
 
-    <!-- Garmin 串接狀態 -->
-    <div class="garmin-banner" :class="garminConnected ? 'connected' : 'disconnected'">
-      <div class="garmin-banner-left">
-        <span class="garmin-icon">⌚</span>
-        <div>
-          <div class="garmin-status-title">
-            {{ garminConnected ? 'Garmin Connect 已連結' : 'Garmin Connect 未連結' }}
-          </div>
-          <div class="garmin-status-sub text-gray">
-            {{ garminConnected ? `上次同步：${lastSyncLabel}` : '連結後可自動匯入 Garmin 訓練資料' }}
-          </div>
-        </div>
-      </div>
-      <div class="garmin-banner-right">
-        <button v-if="garminConnected" class="btn btn-ghost btn-sm" @click="syncGarmin" :disabled="syncing">
-          {{ syncing ? '同步中...' : '🔄 立即同步' }}
-        </button>
-        <button v-if="garminConnected" class="btn btn-ghost btn-sm" style="color:var(--color-gray-2)" @click="disconnectGarmin">解除連結</button>
-        <button v-else class="btn btn-primary btn-sm" @click="connectGarmin">連結 Garmin</button>
-      </div>
-    </div>
-
     <!-- Filter -->
     <div class="training-filter">
       <button v-for="s in sportTypes" :key="s.value"
@@ -40,6 +18,29 @@
         @click="selectSport(s.value)">
         {{ s.icon }} {{ s.label }}
       </button>
+    </div>
+
+    <!-- 日期篩選 + 批次操作 -->
+    <div class="filter-bar">
+      <div class="date-filter">
+        <label>從</label>
+        <input v-model="dateFrom" type="date" class="date-input" @change="applyDateFilter" />
+        <label>到</label>
+        <input v-model="dateTo" type="date" class="date-input" @change="applyDateFilter" />
+        <button v-if="dateFrom || dateTo" class="btn btn-ghost btn-xs" @click="clearDateFilter">✕ 清除</button>
+      </div>
+      <div class="batch-actions" v-if="logs.length">
+        <label class="select-all-label">
+          <input type="checkbox" v-model="selectAll" @change="toggleSelectAll" />
+          全選
+        </label>
+        <template v-if="selectedIds.size > 0">
+          <span class="selected-count">已選 {{ selectedIds.size }} 筆</span>
+          <button class="btn btn-ghost btn-xs" @click="batchSetPublic(true)">🌐 設為公開</button>
+          <button class="btn btn-ghost btn-xs" @click="batchSetPublic(false)">🔒 設為私人</button>
+          <button class="btn btn-ghost btn-xs delete-btn" @click="batchDelete">🗑 刪除</button>
+        </template>
+      </div>
     </div>
 
     <!-- Loading / Empty -->
@@ -52,52 +53,63 @@
 
     <!-- List -->
     <div v-else class="training-list">
-      <div v-for="log in logs" :key="log.id" class="training-card card" @click="openDetail(log)">
-        <div class="tc-header">
-          <div class="tc-sport-badge" :class="`sport-${log.sport_type}`">
-            {{ sportIcon(log.sport_type) }} {{ sportLabel(log.sport_type) }}
-          </div>
-          <div class="tc-privacy">
-            <span v-if="log.is_public" class="public-tag">🌐 公開</span>
-            <span v-else class="private-tag">🔒 私人</span>
-          </div>
+      <div v-for="log in logs" :key="log.id"
+        class="training-card card"
+        :class="{ selected: selectedIds.has(log.id) }">
+        <!-- Checkbox -->
+        <div class="card-select" @click.stop>
+          <input type="checkbox"
+            :checked="selectedIds.has(log.id)"
+            @change="toggleSelect(log.id)" />
         </div>
-        <h3 class="tc-title">{{ log.title }}</h3>
-        <div class="tc-date">{{ log.date }}</div>
-        <div class="tc-stats">
-          <div class="stat-item" v-if="log.distance_km">
-            <span class="stat-val">{{ log.distance_km.toFixed(2) }}</span>
-            <span class="stat-unit">km</span>
+        <!-- Card content -->
+        <div class="card-body-click" @click="openDetail(log)">
+          <div class="tc-header">
+            <div class="tc-sport-badge" :class="`sport-${log.sport_type}`">
+              {{ sportIcon(log.sport_type) }} {{ sportLabel(log.sport_type) }}
+            </div>
+            <div class="tc-privacy">
+              <span v-if="log.is_public" class="public-tag">🌐 公開</span>
+              <span v-else class="private-tag">🔒 私人</span>
+            </div>
           </div>
-          <div class="stat-item" v-if="log.duration_min">
-            <span class="stat-val">{{ formatDuration(log.duration_min) }}</span>
-            <span class="stat-unit">時間</span>
+          <h3 class="tc-title">{{ log.title }}</h3>
+          <div class="tc-date">{{ log.date }}</div>
+          <div class="tc-stats">
+            <div class="stat-item" v-if="log.distance_km">
+              <span class="stat-val">{{ log.distance_km.toFixed(2) }}</span>
+              <span class="stat-unit">km</span>
+            </div>
+            <div class="stat-item" v-if="log.duration_min">
+              <span class="stat-val">{{ formatDuration(log.duration_min) }}</span>
+              <span class="stat-unit">時間</span>
+            </div>
+            <div class="stat-item" v-if="log.avg_heart_rate">
+              <span class="stat-val">{{ log.avg_heart_rate }}</span>
+              <span class="stat-unit">avg bpm</span>
+            </div>
+            <div class="stat-item" v-if="log.avg_pace">
+              <span class="stat-val">{{ log.avg_pace }}</span>
+              <span class="stat-unit">/km</span>
+            </div>
+            <div class="stat-item" v-if="log.elevation_m">
+              <span class="stat-val">{{ log.elevation_m }}</span>
+              <span class="stat-unit">m 爬升</span>
+            </div>
+            <div class="stat-item" v-if="log.calories">
+              <span class="stat-val">{{ log.calories }}</span>
+              <span class="stat-unit">kcal</span>
+            </div>
           </div>
-          <div class="stat-item" v-if="log.avg_heart_rate">
-            <span class="stat-val">{{ log.avg_heart_rate }}</span>
-            <span class="stat-unit">avg bpm</span>
+          <!-- Mini map preview if GPX route available -->
+          <div v-if="log.route_points && log.route_points.length" class="tc-map-preview">
+            <canvas :id="`map-${log.id}`" width="100%" height="80"></canvas>
           </div>
-          <div class="stat-item" v-if="log.avg_pace">
-            <span class="stat-val">{{ log.avg_pace }}</span>
-            <span class="stat-unit">/km</span>
+          <!-- Source badge -->
+          <div class="tc-source" v-if="log.source !== 'manual'">
+            <span class="source-badge">{{ sourceLabel(log.source) }}</span>
           </div>
-          <div class="stat-item" v-if="log.elevation_m">
-            <span class="stat-val">{{ log.elevation_m }}</span>
-            <span class="stat-unit">m 爬升</span>
-          </div>
-          <div class="stat-item" v-if="log.calories">
-            <span class="stat-val">{{ log.calories }}</span>
-            <span class="stat-unit">kcal</span>
-          </div>
-        </div>
-        <!-- Mini map preview if GPX route available -->
-        <div v-if="log.route_points && log.route_points.length" class="tc-map-preview">
-          <canvas :id="`map-${log.id}`" width="100%" height="80"></canvas>
-        </div>
-        <!-- Source badge -->
-        <div class="tc-source" v-if="log.source !== 'manual'">
-          <span class="source-badge">{{ sourceLabel(log.source) }}</span>
-        </div>
+        </div><!-- end card-body-click -->
       </div>
     </div>
 
@@ -291,7 +303,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import TrainingMap from '@/components/TrainingMap.vue'
@@ -299,6 +311,10 @@ import api from '@/services/api'
 
 const auth = useAuthStore()
 const logs = ref([])
+const dateFrom    = ref('')
+const dateTo      = ref('')
+const selectedIds = ref(new Set())
+const selectAll   = ref(false)
 const loading = ref(false)
 const page = ref(1)
 const totalPages = ref(1)
@@ -378,6 +394,41 @@ async function checkGarminStatus() {
 }
 
 function selectSport(v) { selectedSport.value = v; page.value = 1; fetchLogs() }
+function applyDateFilter() { page.value = 1; fetchLogs() }
+function clearDateFilter() { dateFrom.value = ''; dateTo.value = ''; applyDateFilter() }
+
+function toggleSelect(id) {
+  const s = new Set(selectedIds.value)
+  if (s.has(id)) s.delete(id)
+  else s.add(id)
+  selectedIds.value = s
+  selectAll.value = s.size === logs.value.length
+}
+
+function toggleSelectAll() {
+  if (selectAll.value) {
+    selectedIds.value = new Set(logs.value.map(l => l.id))
+  } else {
+    selectedIds.value = new Set()
+  }
+}
+
+async function batchSetPublic(isPublic) {
+  const ids = [...selectedIds.value]
+  if (!ids.length) return
+  try {
+    await Promise.all(ids.map(id =>
+      api.patch(`/training/${id}/public`, { is_public: isPublic })
+    ))
+    logs.value.forEach(l => {
+      if (selectedIds.value.has(l.id)) l.is_public = isPublic
+    })
+    selectedIds.value = new Set()
+    selectAll.value = false
+  } catch(e) {
+    alert('操作失敗：' + (e.response?.data?.error || e.message))
+  }
+}
 function goPage(p) { page.value = p; fetchLogs() }
 
 function openCreate() {
@@ -409,10 +460,32 @@ async function submitForm() {
   if (!form.date)  { formError.value = '請選擇日期'; return }
   formLoading.value = true
   try {
+    // 合併 hours + mins → duration_min
+    const h = form.duration_hours || 0
+    const m = form.duration_mins  || 0
+    const durationMin = (h * 60 + m) || null
+
+    // 建立乾淨的 payload（過濾 0 值和前端專用欄位）
+    const payload = {
+      title:          form.title,
+      sport_type:     form.sport_type || 1,
+      date:           form.date,
+      duration_min:   durationMin,
+      distance_km:    form.distance_km  || null,
+      avg_heart_rate: form.avg_heart_rate || null,
+      max_heart_rate: form.max_heart_rate || null,
+      calories:       form.calories     || null,
+      elevation_m:    form.elevation_m  || null,
+      avg_pace:       form.avg_pace     || '',
+      note:           form.note         || '',
+      is_public:      form.is_public    || false,
+      photos:         form.photos       || [],
+    }
+
     if (formEditId.value) {
-      await api.put(`/training/${formEditId.value}`, form)
+      await api.put(`/training/${formEditId.value}`, payload)
     } else {
-      await api.post('/training', form)
+      await api.post('/training', payload)
     }
     showForm.value = false
     await fetchLogs()
@@ -489,13 +562,23 @@ async function handleFileUpload(file) {
 }
 
 // Public toggle
+async function batchDelete() {
+  const ids = [...selectedIds.value]
+  if (!ids.length) return
+  if (!confirm(`確認刪除選取的 ${ids.length} 筆訓練記錄？此操作無法復原。`)) return
+  try {
+    await Promise.all(ids.map(id => api.delete(`/training/${id}`)))
+    logs.value = logs.value.filter(l => !selectedIds.value.has(l.id))
+    selectedIds.value = new Set()
+    selectAll.value = false
+  } catch(e) {
+    alert('刪除失敗：' + (e.response?.data?.error || e.message))
+  }
+}
+
 async function togglePublic(log) {
   try {
-    const { data } = await api.put(`/training/${log.id}`, {
-      ...log,
-      photos: log.photos || [],
-      is_public: !log.is_public,
-    })
+    await api.patch(`/training/${log.id}/public`, { is_public: !log.is_public })
     log.is_public = !log.is_public
   } catch(e) { alert('更新失敗') }
 }
@@ -555,17 +638,28 @@ onMounted(async () => {
 .btn-sm { padding:.4rem 1rem; font-size:.82rem; }
 
 /* Garmin banner */
-.garmin-banner { display:flex; justify-content:space-between; align-items:center; padding:.85rem 1.25rem; border-radius:6px; border:1px solid var(--color-border); margin-bottom:1.25rem; flex-wrap:wrap; gap:.75rem; }
-.garmin-banner.connected { border-color:rgba(34,197,94,.3); background:rgba(34,197,94,.05); }
-.garmin-banner.disconnected { border-color:rgba(107,114,128,.2); background:rgba(107,114,128,.03); }
-.garmin-banner-left { display:flex; align-items:center; gap:.75rem; }
 .garmin-icon { font-size:1.5rem; }
 .garmin-status-title { font-weight:600; font-size:.9rem; }
 .garmin-status-sub { font-size:.78rem; }
-.garmin-banner-right { display:flex; gap:.5rem; align-items:center; }
 
 /* Filter */
-.training-filter { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.25rem; }
+.training-filter { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.75rem; }
+
+/* Filter bar */
+.filter-bar { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:.6rem; margin-bottom:1.25rem; padding:.75rem 1rem; background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:6px; }
+.date-filter { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; font-size:.82rem; color:var(--color-gray-2); }
+.date-input { height:32px; padding:.2rem .6rem; font-size:.82rem; width:130px; }
+.btn-xs { padding:.2rem .65rem; font-size:.76rem; }
+.batch-actions { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; font-size:.82rem; }
+.select-all-label { display:flex; align-items:center; gap:.3rem; cursor:pointer; font-weight:600; color:var(--color-gray-1); }
+.selected-count { color:var(--color-primary); font-weight:600; font-size:.8rem; }
+
+/* Card select checkbox */
+.training-card { position:relative; }
+.card-select { position:absolute; top:.75rem; left:.75rem; z-index:2; }
+.card-select input[type=checkbox] { width:16px; height:16px; cursor:pointer; accent-color:var(--color-primary); }
+.card-body-click { cursor:pointer; }
+.training-card.selected { border-color:var(--color-primary); background:rgba(207,32,39,.03); }
 .sport-btn { padding:.3rem .85rem; border-radius:4px; border:1px solid var(--color-border); font-size:.8rem; cursor:pointer; background:none; color:var(--color-gray-2); transition:all .15s; }
 .sport-btn.active, .sport-btn:hover { border-color:var(--color-primary); color:var(--color-primary); }
 
@@ -662,4 +756,5 @@ onMounted(async () => {
 .upload-zone:hover { border-color:var(--color-primary); }
 .upload-icon { font-size:3rem; margin-bottom:1rem; }
 .upload-success { background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.3); border-radius:4px; color:#86efac; font-size:.85rem; padding:.6rem 1rem; margin-top:.75rem; display:flex; align-items:center; justify-content:space-between; }
+.delete-btn { color:var(--color-danger, #ef4444) !important; }
 </style>

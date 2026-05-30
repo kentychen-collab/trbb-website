@@ -16,6 +16,7 @@ const routes = [
       { path: 'events/:id',    name: 'EventDetail',        component: () => import('@/views/events/EventDetailView.vue') },
       { path: 'products',      name: 'Products',           component: () => import('@/views/products/ProductListView.vue') },
       { path: 'orders',        name: 'Orders',             component: () => import('@/views/orders/OrderListView.vue') },
+      { path: 'settings',      name: 'SiteSettings',       component: () => import('@/views/settings/SiteSettingsView.vue') },
       { path: 'training',      name: 'Training',           component: () => import('@/views/training/TrainingListView.vue') },
       { path: 'announcements', name: 'Announcements',      component: () => import('@/views/announcements/AnnouncementListView.vue') },
     ]

@@ -1,23 +1,50 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:wght@300;400;500;600;700;900&family=Barlow+Condensed:wght@400;600;700&display=swap');
 
-/* ── CSS Variables ──────────────────────────────────────── */
+/* ── CSS Variables — Light Theme ────────────────────────── */
+/*
+  色票來源：
+  2046 Palette: #A593E0 (紫) #E0E3DA (灰綠) #FFFFF3 (米白) #566270 (深藍灰)
+  TRBB Logo:    #CF2027 (紅) #1A3A7A (藍)
+*/
 :root {
-  --color-bg:        #000000;
-  --color-bg-2:      #0a0a0a;
-  --color-bg-card:   #111111;
-  --color-bg-hover:  #1a1a1a;
-  --color-border:    #222222;
-  --color-primary:   #e5191a;   /* TRBB Red */
-  --color-primary-d: #b81415;
-  --color-white:     #ffffff;
-  --color-gray-1:    #cccccc;
-  --color-gray-2:    #888888;
-  --color-gray-3:    #444444;
+  /* Backgrounds */
+  --color-bg:        #FFFFF3;   /* 米白底 */
+  --color-bg-2:      #F5F5E8;   /* 略深米白，交替區塊 */
+  --color-bg-card:   #FFFFFF;   /* 純白卡片 */
+  --color-bg-hover:  #F0EFE4;   /* hover 狀態 */
+
+  /* Borders */
+  --color-border:    #E0E3DA;   /* 灰綠邊框 */
+
+  /* Brand */
+  --color-primary:   #CF2027;   /* TRBB 紅 */
+  --color-primary-d: #A81920;   /* 深紅 hover */
+  --color-accent:    #A593E0;   /* 2046 紫，副強調 */
+  --color-navy:      #1A3A7A;   /* TRBB 藍，導覽/標題 */
+
+  /* Text */
+  --color-white:     #FFFFFF;
+  --color-text:      #566270;   /* 主文字（深藍灰） */
+  --color-gray-1:    #566270;   /* 同主文字 */
+  --color-gray-2:    #8A9099;   /* 次要文字 */
+  --color-gray-3:    #C5C8CC;   /* 最淡，佔位 */
+
+  /* Status */
+  --color-success:   #2E8B57;
+  --color-warning:   #D4820A;
+  --color-danger:    #CF2027;
+
+  /* Typography */
   --font-display:    'Bebas Neue', sans-serif;
   --font-body:       'Barlow', sans-serif;
   --font-cond:       'Barlow Condensed', sans-serif;
-  --radius:          4px;
+
+  --radius:          6px;
+  --navbar-bg:       rgba(255,255,243,0.95);
+  --navbar-text:     #1A3A7A;
   --transition:      0.2s ease;
+  --shadow-sm:       0 1px 4px rgba(86,98,112,0.10);
+  --shadow-md:       0 4px 16px rgba(86,98,112,0.14);
 }
 
 /* ── Reset ──────────────────────────────────────────────── */
@@ -26,7 +53,7 @@ html { font-size: 16px; scroll-behavior: smooth; }
 
 body {
   background-color: var(--color-bg);
-  color: var(--color-white);
+  color: var(--color-text);
   font-family: var(--font-body);
   font-weight: 400;
   line-height: 1.6;
@@ -40,62 +67,60 @@ button { cursor: pointer; border: none; background: none; font-family: inherit; 
 input, select, textarea {
   font-family: inherit;
   background: var(--color-bg-card);
-  color: var(--color-white);
+  color: var(--color-text);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   padding: 0.6rem 0.9rem;
-  transition: border-color var(--transition);
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 input:focus, select:focus, textarea:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--color-navy);
+  box-shadow: 0 0 0 3px rgba(26,58,122,0.10);
 }
 
-/* ── Typography ─────────────────────────────────────────── */
-.trbb-logo {
-  font-family: var(--font-display);
-  letter-spacing: 0.05em;
-}
-.trbb-logo .tr { color: var(--color-white); }
+/* ── Logo ────────────────────────────────────────────────── */
+.trbb-logo { font-family: var(--font-display); letter-spacing: 0.05em; }
+.trbb-logo .tr { color: var(--color-navy); }
 .trbb-logo .bb { color: var(--color-primary); }
 
+/* ── Typography ─────────────────────────────────────────── */
 h1, h2, h3, h4, h5 {
   font-family: var(--font-cond);
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: 0.03em;
+  color: var(--color-navy);
 }
 
 /* ── Buttons ─────────────────────────────────────────────── */
 .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
   padding: 0.7rem 1.8rem;
-  font-family: var(--font-cond);
-  font-size: 0.95rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  border-radius: var(--radius);
-  transition: all var(--transition);
+  font-family: var(--font-cond); font-size: 0.95rem; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  border-radius: var(--radius); transition: all var(--transition);
 }
 .btn-primary {
-  background: var(--color-primary);
-  color: var(--color-white);
+  background: var(--color-primary); color: #fff;
+  box-shadow: 0 2px 8px rgba(207,32,39,0.25);
 }
-.btn-primary:hover { background: var(--color-primary-d); color: var(--color-white); }
+.btn-primary:hover { background: var(--color-primary-d); color: #fff; box-shadow: 0 4px 14px rgba(207,32,39,0.35); }
+
 .btn-outline {
-  border: 1px solid var(--color-primary);
-  color: var(--color-primary);
+  border: 2px solid var(--color-primary); color: var(--color-primary); background: transparent;
 }
-.btn-outline:hover { background: var(--color-primary); color: var(--color-white); }
+.btn-outline:hover { background: var(--color-primary); color: #fff; }
+
 .btn-ghost {
-  border: 1px solid var(--color-border);
-  color: var(--color-gray-1);
+  border: 1px solid var(--color-border); color: var(--color-gray-1); background: transparent;
 }
-.btn-ghost:hover { border-color: var(--color-white); color: var(--color-white); }
+.btn-ghost:hover { border-color: var(--color-navy); color: var(--color-navy); background: rgba(26,58,122,0.05); }
+
+.btn-navy {
+  background: var(--color-navy); color: #fff;
+}
+.btn-navy:hover { background: #142d63; color: #fff; }
 
 /* ── Cards ───────────────────────────────────────────────── */
 .card {
@@ -103,15 +128,21 @@ h1, h2, h3, h4, h5 {
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   overflow: hidden;
-  transition: border-color var(--transition), transform var(--transition);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition), box-shadow var(--transition), transform var(--transition);
 }
-.card:hover { border-color: var(--color-primary); transform: translateY(-2px); }
+.card:hover {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
 
 /* ── Container ───────────────────────────────────────────── */
 .container { width: 100%; max-width: 1280px; margin: 0 auto; padding: 0 1.5rem; }
 
 /* ── Utility ─────────────────────────────────────────────── */
 .text-red   { color: var(--color-primary); }
+.text-navy  { color: var(--color-navy); }
 .text-gray  { color: var(--color-gray-2); }
 .text-sm    { font-size: 0.875rem; }
 .text-xs    { font-size: 0.75rem; }
@@ -138,21 +169,29 @@ h1, h2, h3, h4, h5 {
 .fade-in { animation: fadeIn 0.4s ease forwards; }
 
 @keyframes pulse-red {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(229, 25, 26, 0.4); }
-  50%       { box-shadow: 0 0 0 8px rgba(229, 25, 26, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(207,32,39,0.3); }
+  50%       { box-shadow: 0 0 0 8px rgba(207,32,39,0); }
 }
 .pulse-red { animation: pulse-red 2s infinite; }
 
-/* ── Red accent line ─────────────────────────────────────── */
+/* ── Section Title ───────────────────────────────────────── */
 .section-title {
-  position: relative;
-  padding-bottom: 0.6rem;
-  margin-bottom: 1.5rem;
+  position: relative; padding-bottom: 0.6rem; margin-bottom: 1.5rem;
 }
 .section-title::after {
-  content: '';
-  position: absolute;
-  bottom: 0; left: 0;
-  width: 48px; height: 3px;
-  background: var(--color-primary);
+  content: ''; position: absolute; bottom: 0; left: 0;
+  width: 48px; height: 3px; background: var(--color-primary);
+  border-radius: 2px;
 }
+
+/* ── Navbar (shared light style) ────────────────────────── */
+.navbar-light {
+  background: rgba(255,255,243,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ── Hero dark overlay overrides ────────────────────────── */
+/* Hero sections keep dark backgrounds for contrast against images */
+.hero-dark { --color-text: #fff; --color-gray-1: rgba(255,255,255,0.85); }

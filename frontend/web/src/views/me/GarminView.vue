@@ -29,10 +29,20 @@
       </div>
       <div class="status-actions">
         <template v-if="garminStatus === 'connected'">
-          <button class="btn btn-primary btn-sm" @click="syncNow" :disabled="syncing">
-            {{ syncing ? '同步中...' : '🔄 立即同步' }}
-          </button>
-          <button class="btn btn-ghost btn-sm" @click="confirmDisconnect">解除連結</button>
+          <div class="sync-options">
+            <label class="public-switch">
+              <span class="switch-label">同步後設為</span>
+              <button class="pub-toggle" :class="{ public: syncPublic }"
+                @click="syncPublic = !syncPublic" type="button">
+                {{ syncPublic ? '🌐 公開' : '🔒 私人' }}
+              </button>
+            </label>
+            <button class="btn btn-primary btn-sm" @click="syncNow" :disabled="syncing">
+              <span v-if="syncing" class="spinner"></span>
+              {{ syncing ? '同步中...' : '🔄 同步近 30 天' }}
+            </button>
+            <button class="btn btn-ghost btn-sm" @click="confirmDisconnect">解除連結</button>
+          </div>
         </template>
         <template v-else-if="garminStatus === 'disconnected'">
           <button class="btn btn-primary" @click="connectGarmin" :disabled="connecting">
@@ -48,7 +58,14 @@
 
     <!-- ── 同步結果 ───────────────────────────────────── -->
     <div v-if="syncResult" class="sync-result" :class="syncResult.ok ? 'ok' : 'err'">
-      {{ syncResult.ok ? `✓ 已匯入 ${syncResult.count} 筆訓練資料` : `✗ ${syncResult.msg}` }}
+      <template v-if="syncResult.ok">
+        <span v-if="syncResult.count > 0">
+          ✓ 已匯入 {{ syncResult.count }} 筆訓練活動
+          <span v-if="syncResult.public">（{{ syncResult.public }} 筆已設為公開）</span>
+        </span>
+        <span v-else>無新活動</span>
+      </template>
+      <template v-else>✗ {{ syncResult.msg }}</template>
     </div>
 
     <!-- ── 說明卡片 ───────────────────────────────────── -->
@@ -114,6 +131,7 @@ import { RouterLink } from 'vue-router'
 import api from '@/services/api'
 
 const garminStatus = ref('loading') // loading | connected | disconnected | unavailable
+const syncPublic   = ref(false)     // 同步後是否公開
 const tokenInfo    = ref(null)
 const connecting   = ref(false)
 const syncing      = ref(false)
@@ -172,7 +190,26 @@ async function syncNow() {
   syncResult.value = null
   try {
     const { data } = await api.post('/training/garmin/sync')
-    syncResult.value = { ok: true, count: data.count || 0 }
+    const count = data.count || 0
+
+    // 若選擇公開，批次 PATCH 剛同步的 garmin 記錄
+    if (syncPublic.value && count > 0) {
+      const { data: logs } = await api.get('/me/training', {
+        params: { page: 1, page_size: count + 10 }
+      })
+      const recentIds = (logs.logs || [])
+        .filter(l => l.source === 'garmin' && !l.is_public)
+        .slice(0, count)
+        .map(l => l.id)
+      if (recentIds.length) {
+        await Promise.all(recentIds.map(id =>
+          api.patch(`/training/${id}/public`, { is_public: true })
+        ))
+      }
+      syncResult.value = { ok: true, count, public: recentIds.length }
+    } else {
+      syncResult.value = { ok: true, count }
+    }
     await checkStatus()
   } catch(e) {
     syncResult.value = { ok: false, msg: e.response?.data?.error || '同步失敗' }
@@ -237,4 +274,9 @@ onMounted(checkStatus)
 
 .spinner { width:14px; height:14px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; display:inline-block; }
 @keyframes spin { to { transform:rotate(360deg) } }
+.sync-options { display:flex; flex-direction:column; gap:.5rem; align-items:flex-end; }
+.public-switch { display:flex; align-items:center; gap:.5rem; font-size:.82rem; color:var(--color-gray-2); }
+.switch-label { font-size:.78rem; }
+.pub-toggle { padding:.3rem .85rem; border-radius:4px; border:1px solid var(--color-border); font-size:.8rem; font-weight:600; cursor:pointer; background:var(--color-bg-card,#fff); color:var(--color-gray-2); transition:all .15s; }
+.pub-toggle.public { border-color:rgba(34,197,94,.5); color:#22c55e; background:rgba(34,197,94,.06); }
 </style>

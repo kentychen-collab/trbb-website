@@ -25,6 +25,7 @@ const routes = [
       { path: 'orders',    name: 'Orders',     component: () => import('@/views/me/OrdersView.vue') },
       { path: 'training',  name: 'Training',   component: () => import('@/views/me/TrainingView.vue') },
       { path: 'garmin',    name: 'Garmin',     component: () => import('@/views/me/GarminView.vue') },
+      { path: 'strava',    name: 'Strava',     component: () => import('@/views/me/StravaView.vue') },
       { path: 'my-items',  name: 'MyItems',    component: () => import('@/views/me/MyItemsView.vue') },
       { path: 'membership',name: 'Membership', component: () => import('@/views/me/MembershipView.vue') },
     ]

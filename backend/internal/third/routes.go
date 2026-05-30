@@ -16,10 +16,13 @@ func RegisterRoutes(r *gin.RouterGroup, db *database.DB,
 	trainingSvc := services.NewTrainingService(db, minio)
 	trainingH   := apiHandlers.NewTrainingHandler(trainingSvc, cfg)
 
-	// Garmin OAuth 1.0a callback
+	// ── Garmin OAuth 1.0a callback ─────────────────────────
 	r.GET("/garmin/callback", trainingH.GarminCallback)
 
-	// Placeholder stubs for future third-party callbacks
-	r.POST("/ecpay/callback",    func(c *gin.Context) { c.JSON(200, gin.H{"msg": "TODO: ecpay"}) })
-	r.POST("/linepay/callback",  func(c *gin.Context) { c.JSON(200, gin.H{"msg": "TODO: linepay"}) })
+	// ── Strava OAuth 2.0 callback ──────────────────────────
+	r.GET("/strava/callback", trainingH.StravaCallback)
+
+	// ── Payment stubs ──────────────────────────────────────
+	r.POST("/ecpay/callback",   func(c *gin.Context) { c.JSON(200, gin.H{"msg": "TODO: ecpay"}) })
+	r.POST("/linepay/callback", func(c *gin.Context) { c.JSON(200, gin.H{"msg": "TODO: linepay"}) })
 }

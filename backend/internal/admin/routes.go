@@ -18,12 +18,14 @@ func RegisterRoutes(r *gin.RouterGroup, db *database.DB, rdb *cache.Cache,
 	userSvc   := services.NewUserService(db, cfg.App.SecretKey)
 	eventSvc  := services.NewEventService(db)
 	shopSvc      := services.NewShopService(db)
+	sitesSvc     := services.NewSiteSettingsService(db)
 	trainingSvc  := services.NewTrainingService(db, minio)
 	userH        := adminHandlers.NewAdminUserHandler(userSvc)
 	trainingH    := adminHandlers.NewAdminTrainingHandler(trainingSvc)
 	eventH    := adminHandlers.NewAdminEventHandler(eventSvc)
 	shopH     := adminHandlers.NewAdminShopHandler(shopSvc)
 	uploadH   := adminHandlers.NewUploadHandler(minio)
+	siteH     := adminHandlers.NewAdminSiteSettingsHandler(sitesSvc, minio)
 
 	// ── Auth ────────────────────────────────────────────────
 	auth := r.Group("/auth")
@@ -79,6 +81,15 @@ func RegisterRoutes(r *gin.RouterGroup, db *database.DB, rdb *cache.Cache,
 			training.GET("",       trainingH.ListTraining)
 			training.GET("/stats", trainingH.Stats)
 			training.GET("/:id",   trainingH.GetTraining)
+		}
+
+		// ── 網站設定 ─────────────────────────────────────────
+		ss := a.Group("/settings")
+		{
+			ss.GET("",              siteH.GetAll)
+			ss.POST("",             siteH.BatchUpdate)
+			ss.PUT("/:key",         siteH.SetOne)
+			ss.POST("/upload/:purpose", siteH.UploadSettingImage)
 		}
 
 		// ── TODO stubs ───────────────────────────────────────

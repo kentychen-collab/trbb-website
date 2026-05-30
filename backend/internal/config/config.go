@@ -60,6 +60,7 @@ type LogConfig struct {
 type ThirdPartyConfig struct {
 	Payment  PaymentConfig
 	Garmin   GarminConfig
+	Strava   StravaConfig
 	Line     LineConfig
 	Google   GoogleConfig
 	Facebook FacebookConfig
@@ -77,6 +78,15 @@ type PaymentConfig struct {
 }
 
 type GarminConfig struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURI  string
+	AuthURL      string
+	TokenURL     string
+	APIBase      string
+}
+
+type StravaConfig struct {
 	ClientID     string
 	ClientSecret string
 	RedirectURI  string
@@ -170,6 +180,14 @@ func Load() *Config {
 				AuthURL:      getEnv("GARMIN_AUTH_URL", ""),
 				TokenURL:     getEnv("GARMIN_TOKEN_URL", ""),
 				APIBase:      getEnv("GARMIN_API_BASE", ""),
+			},
+			Strava: StravaConfig{
+				ClientID:     getEnv("STRAVA_CLIENT_ID", ""),
+				ClientSecret: getEnv("STRAVA_CLIENT_SECRET", ""),
+				RedirectURI:  getEnv("STRAVA_REDIRECT_URI", "https://trbbtw.com/v1/third/strava/callback"),
+				AuthURL:      getEnv("STRAVA_AUTH_URL", "https://www.strava.com/oauth/authorize"),
+				TokenURL:     getEnv("STRAVA_TOKEN_URL", "https://www.strava.com/oauth/token"),
+				APIBase:      getEnv("STRAVA_API_BASE", "https://www.strava.com/api/v3"),
 			},
 			Line: LineConfig{
 				NotifyToken:   getEnv("LINE_NOTIFY_TOKEN", ""),

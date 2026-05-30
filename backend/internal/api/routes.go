@@ -18,6 +18,7 @@ func RegisterRoutes(r *gin.RouterGroup, db *database.DB, rdb *cache.Cache,
 	minio *storage.Storage, cfg *config.Config, log *logger.Logger) {
 
 	userSvc     := services.NewUserService(db, cfg.App.SecretKey)
+	sitesSvc    := services.NewSiteSettingsService(db)
 	eventSvc    := services.NewEventService(db)
 	shopSvc     := services.NewShopService(db)
 	trainingSvc := services.NewTrainingService(db, minio)
@@ -26,6 +27,10 @@ func RegisterRoutes(r *gin.RouterGroup, db *database.DB, rdb *cache.Cache,
 	shopH       := apiHandlers.NewShopHandler(shopSvc)
 	trainingH   := apiHandlers.NewTrainingHandler(trainingSvc, cfg)
 	uploadH     := apiHandlers.NewUploadHandler(minio)
+	siteH       := apiHandlers.NewSiteSettingsHandler(sitesSvc)
+
+	// ── Site Settings (public) ───────────────────────────────
+	r.GET("/settings", siteH.GetPublic)
 
 	// ── Auth ────────────────────────────────────────────────
 	auth := r.Group("/auth")
@@ -71,6 +76,11 @@ func RegisterRoutes(r *gin.RouterGroup, db *database.DB, rdb *cache.Cache,
 			me.GET("/garmin/status",          trainingH.GarminStatus)
 			me.GET("/garmin/connect",         trainingH.GarminConnect)
 			me.DELETE("/garmin/disconnect",   trainingH.GarminDisconnect)
+
+			// Strava
+			me.GET("/strava/status",          trainingH.StravaStatus)
+			me.GET("/strava/connect",         trainingH.StravaConnect)
+			me.DELETE("/strava/disconnect",   trainingH.StravaDisconnect)
 		}
 
 		// 賽事
@@ -87,10 +97,12 @@ func RegisterRoutes(r *gin.RouterGroup, db *database.DB, rdb *cache.Cache,
 		// 訓練日記
 		p.POST("/training",                        trainingH.Create)
 		p.PUT("/training/:id",                     trainingH.Update)
+		p.PATCH("/training/:id/public",            trainingH.PatchPublic)
 		p.DELETE("/training/:id",                  trainingH.Delete)
 		p.POST("/training/upload/gpx",             trainingH.UploadGPX)
 		p.POST("/training/upload/fit",             trainingH.UploadFIT)
 		p.POST("/training/garmin/sync",            trainingH.GarminSync)
+		p.POST("/training/strava/sync",            trainingH.StravaSync)
 
 		// 圖片上傳
 		p.POST("/upload/image",                    uploadH.UploadImage)

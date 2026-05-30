@@ -91,3 +91,18 @@ type GarminToken struct {
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 }
+
+// StravaToken stores OAuth 2.0 tokens for a user's Strava connection
+type StravaToken struct {
+	ID              uint64     `json:"id"`
+	UserID          uint64     `json:"user_id"`
+	AccessToken     string     `json:"-"`
+	RefreshToken    string     `json:"-"`
+	TokenType       string     `json:"token_type"`
+	ExpiresAt       *time.Time `json:"expires_at"`
+	StravaAthleteID int64      `json:"strava_athlete_id"`
+	AthleteName     string     `json:"athlete_name"`
+	LastSyncAt      *time.Time `json:"last_sync_at"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
+}

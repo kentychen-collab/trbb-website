@@ -1,21 +1,6 @@
 <template>
   <div class="home">
     <!-- ── Navbar ─────────────────────────────────────── -->
-    <nav class="navbar">
-      <div class="container nav-inner">
-        <RouterLink to="/" class="trbb-logo nav-logo">
-          <span class="tr">TR</span><span class="bb">BB</span>
-        </RouterLink>
-        <ul class="nav-links">
-          <li><RouterLink to="/events">賽事</RouterLink></li>
-          <li><RouterLink to="/shop">商品</RouterLink></li>
-          <li><RouterLink to="/secondhand">二手</RouterLink></li>
-          <li><RouterLink to="/news">公告</RouterLink></li>
-          <li v-if="!auth.isLoggedIn"><RouterLink to="/login" class="btn btn-primary">登入</RouterLink></li>
-          <li v-else><RouterLink to="/me" class="btn btn-outline">會員中心</RouterLink></li>
-        </ul>
-      </div>
-    </nav>
 
     <!-- ── Hero ──────────────────────────────────────── -->
     <section class="hero">
@@ -24,6 +9,13 @@
         <div class="hero-glow"></div>
       </div>
       <div class="container hero-content">
+        <!-- Dynamic Banner from Site Settings -->
+        <div v-if="site.get('banner_visible')=='1' && site.get('banner_image')" class="anniversary-banner">
+          <a :href="site.get('banner_link') || undefined" :target="site.get('banner_link') ? '_blank' : undefined">
+            <img :src="site.get('banner_image')" :alt="site.get('banner_text') || 'Banner'" class="anniversary-img" />
+          </a>
+          <p v-if="site.get('banner_text')" class="banner-caption">{{ site.get('banner_text') }}</p>
+        </div>
         <div class="hero-tag">TRIATHLON · RUNNING · BIKING · SWIMMING</div>
         <h1 class="hero-title">
           <span class="tr">TR</span><span class="bb">BB</span>
@@ -45,20 +37,6 @@
       </div>
       <div class="hero-scroll-hint">
         <span></span>SCROLL
-      </div>
-    </section>
-
-    <!-- ── Features ──────────────────────────────────── -->
-    <section class="features">
-      <div class="container">
-        <h2 class="section-title text-center">社團服務</h2>
-        <div class="features-grid">
-          <div class="feature-card card" v-for="f in features" :key="f.title">
-            <div class="feature-icon">{{ f.icon }}</div>
-            <h3>{{ f.title }}</h3>
-            <p>{{ f.desc }}</p>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -112,6 +90,30 @@
       </div>
     </section>
 
+    <!-- ── Latest Products ────────────────────────────── -->
+    <section class="latest-products">
+      <div class="container">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="section-title">近期商品</h2>
+          <RouterLink to="/shop" class="btn btn-ghost">查看全部</RouterLink>
+        </div>
+        <div v-if="productsLoading" class="loading-box"><div class="loading-spinner"></div></div>
+        <div v-else-if="!latestProducts.length" class="empty-box"><p>目前無商品</p></div>
+        <div v-else class="products-mini-grid">
+          <RouterLink v-for="p in latestProducts" :key="p.id"
+            :to="`/shop/${p.id}`" class="product-mini-card card">
+            <div class="pmc-img">
+              <img v-if="p.images && p.images.length" :src="imgUrl(p.images[0])" :alt="p.title" />
+              <span v-else class="pmc-placeholder">🛍</span>
+            </div>
+            <div class="pmc-body">
+              <div class="pmc-title">{{ p.title }}</div>
+              <div class="pmc-price">NT$ {{ Number(p.price).toLocaleString() }}</div>
+            </div>
+          </RouterLink>
+        </div>
+      </div>
+    </section>
     <!-- ── Public Training Feed ─────────────────────── -->
     <section class="training-feed">
       <div class="container">
@@ -152,7 +154,19 @@
         </div>
       </div>
     </section>
-
+    <!-- ── Features ──────────────────────────────────── -->
+    <section class="features">
+      <div class="container">
+        <h2 class="section-title text-center">社團服務</h2>
+        <div class="features-grid">
+          <div class="feature-card card" v-for="f in features" :key="f.title">
+            <div class="feature-icon">{{ f.icon }}</div>
+            <h3>{{ f.title }}</h3>
+            <p>{{ f.desc }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
     <!-- ── Garmin Banner ─────────────────────────────── -->
     <section class="garmin-banner">
       <div class="container garmin-inner">
@@ -214,13 +228,17 @@
 import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useSiteSettingsStore } from '@/stores/siteSettings'
 import api from '@/services/api'
 
 const auth = useAuthStore()
+const site = useSiteSettingsStore()
 const latestEvents  = ref([])
 const eventsLoading  = ref(true)
-const trainingLogs   = ref([])
-const trainingLoading = ref(true)
+const trainingLogs    = ref([])
+const trainingLoading  = ref(true)
+const latestProducts  = ref([])
+const productsLoading = ref(true)
 
 // 載入最新 3 筆已發布賽事
 async function fetchLatestEvents() {
@@ -233,6 +251,18 @@ async function fetchLatestEvents() {
     latestEvents.value = []
   } finally {
     eventsLoading.value = false
+  }
+}
+
+async function fetchProducts() {
+  productsLoading.value = true
+  try {
+    const { data } = await api.get('/products', { params: { page: 1, page_size: 4 } })
+    latestProducts.value = data.products || []
+  } catch(e) {
+    console.error('fetchProducts error', e)
+  } finally {
+    productsLoading.value = false
   }
 }
 
@@ -300,32 +330,22 @@ const features = [
   { icon: '🏅', title: '會員制度', desc: '分級會員系統，解鎖專屬訓練計畫、折扣及優先報名資格。' },
 ]
 
-onMounted(() => { fetchLatestEvents(); fetchTrainingLogs() })
+onMounted(() => { fetchLatestEvents(); fetchTrainingLogs(); fetchProducts() })
 </script>
 
 <style scoped>
 /* ── Navbar ──────────────────────────────────────────────── */
-.navbar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  background: rgba(0,0,0,0.85);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--color-border);
-}
-.nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
-.nav-logo { font-size: 2rem; }
-.nav-links { display: flex; gap: 2rem; align-items: center; list-style: none; }
-.nav-links a { font-family: var(--font-cond); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; font-size: 0.9rem; }
 
 /* ── Hero ────────────────────────────────────────────────── */
-.hero { position: relative; min-height: 100vh; display: flex; align-items: center; padding-top: 64px; overflow: hidden; }
-.hero-bg { position: absolute; inset: 0; }
+.hero { position: relative; min-height: 100vh; display: flex; align-items: center; padding-top: 64px; }
+.hero-bg { position: absolute; inset: 0; background: var(--color-navy); }
 .hero-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(229,25,26,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(229,25,26,0.05) 1px, transparent 1px); background-size: 60px 60px; }
 .hero-glow { position: absolute; top: 30%; left: 50%; transform: translate(-50%,-50%); width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, rgba(229,25,26,0.12) 0%, transparent 70%); }
 .hero-content { position: relative; z-index: 1; padding: 4rem 0; }
 .hero-tag { font-family: var(--font-cond); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.25em; color: var(--color-primary); margin-bottom: 1.5rem; text-transform: uppercase; }
 .hero-title { font-family: var(--font-display); font-size: clamp(5rem, 15vw, 12rem); line-height: 0.9; margin-bottom: 0.5rem; }
-.hero-title .tr { color: var(--color-white); }
-.hero-title .bb { color: var(--color-primary); }
+.hero-title .tr { color: #E0E3DA; }
+.hero-title .bb { color: #C9A84C; }
 .hero-subtitle { font-family: var(--font-cond); font-size: clamp(1.2rem, 3vw, 2rem); font-weight: 300; letter-spacing: 0.3em; color: var(--color-gray-1); display: block; }
 .hero-desc { max-width: 520px; color: var(--color-gray-1); font-size: 1.05rem; margin: 1.5rem 0 2rem; line-height: 1.8; }
 .hero-cta { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 3rem; }
@@ -338,6 +358,14 @@ onMounted(() => { fetchLatestEvents(); fetchTrainingLogs() })
 .hero-scroll-hint { position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 0.5rem; font-family: var(--font-cond); font-size: 0.7rem; letter-spacing: 0.2em; color: var(--color-gray-3); }
 .hero-scroll-hint span { width: 1px; height: 40px; background: linear-gradient(to bottom, transparent, var(--color-primary)); animation: scrollLine 2s ease-in-out infinite; }
 @keyframes scrollLine { 0%,100% { opacity: 0.3; } 50% { opacity: 1; } }
+
+/* Anniversary banner */
+.anniversary-banner { margin-bottom: 1.5rem; }
+.anniversary-img {
+  max-height: 120px; width: auto;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+}
+.banner-caption { font-size:.85rem; color:rgba(255,255,255,.8); margin-top:.35rem; }
 
 /* ── Features ────────────────────────────────────────────── */
 .features { padding: 6rem 0; background: var(--color-bg-2); }
@@ -419,4 +447,17 @@ onMounted(() => { fetchLatestEvents(); fetchTrainingLogs() })
 .training-meta { display:flex; justify-content:space-between; margin-bottom:.35rem; }
 .training-title { font-size:.95rem; font-weight:700; line-height:1.4; margin-bottom:.4rem; }
 .training-stats { display:flex; gap:.75rem; flex-wrap:wrap; font-size:.78rem; color:var(--color-gray-2); }
+
+/* ── Latest Products ──────────────────────────────────────── */
+.latest-products { padding:3.5rem 0; background:var(--color-bg-card); }
+.products-mini-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1.25rem; }
+.product-mini-card { display:block; background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:8px; overflow:hidden; box-shadow:0 1px 4px rgba(86,98,112,.08); transition:all .2s; }
+.product-mini-card:hover { border-color:var(--color-primary); transform:translateY(-3px); box-shadow:0 4px 16px rgba(207,32,39,.12); }
+.pmc-img { height:160px; overflow:hidden; background:var(--color-bg-2); display:flex; align-items:center; justify-content:center; }
+.pmc-img img { width:100%; height:100%; object-fit:cover; }
+.pmc-placeholder { font-size:3rem; }
+.pmc-body { padding:.9rem 1rem; }
+.pmc-title { font-weight:700; font-size:.9rem; margin-bottom:.3rem; color:var(--color-text); }
+.pmc-price { font-family:var(--font-cond,'Barlow Condensed',sans-serif); font-size:1.1rem; font-weight:700; color:var(--color-primary); }
+
 </style>

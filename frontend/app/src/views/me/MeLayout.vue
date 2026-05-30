@@ -1,18 +1,6 @@
 <template>
   <div class="me-page">
     <!-- Topbar -->
-    <nav class="navbar">
-      <div class="container nav-inner">
-        <RouterLink to="/" class="trbb-logo nav-logo">
-          <span class="tr">TR</span><span class="bb">BB</span>
-        </RouterLink>
-        <div class="flex items-center gap-2">
-          <RouterLink to="/events" class="nav-link">賽事</RouterLink>
-          <RouterLink to="/shop" class="nav-link">商品</RouterLink>
-          <button class="btn btn-ghost btn-sm" @click="handleLogout">登出</button>
-        </div>
-      </div>
-    </nav>
 
     <div class="me-layout container">
       <!-- Sidebar -->
@@ -60,6 +48,7 @@ const navItems = [
   { to: '/me/orders',    icon: '📦', label: '我的訂單' },
   { to: '/me/training',  icon: '📔', label: '訓練日記' },
   { to: '/me/garmin',    icon: '⌚', label: 'Garmin 串接' },
+  { to: '/me/strava',    icon: '🟠', label: 'Strava 串接' },
   { to: '/me/my-items',  icon: '🔄', label: '我的二手品' },
   { to: '/me/membership',icon: '🏅', label: '會員狀態' },
 ]
@@ -76,13 +65,6 @@ async function handleLogout() {
 
 <style scoped>
 .me-page { background: var(--color-bg); min-height: 100vh; }
-.navbar {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  background: rgba(0,0,0,0.9); backdrop-filter: blur(12px);
-  border-bottom: 1px solid var(--color-border);
-}
-.nav-inner { display: flex; align-items: center; justify-content: space-between; height: 64px; }
-.nav-logo { font-size: 2rem; }
 .nav-link { font-family: var(--font-cond); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; font-size: 0.85rem; color: var(--color-gray-1); transition: color 0.2s; }
 .nav-link:hover { color: var(--color-primary); }
 .btn-sm { padding: 0.4rem 1rem; font-size: 0.82rem; }

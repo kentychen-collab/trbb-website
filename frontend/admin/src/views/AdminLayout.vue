@@ -3,8 +3,11 @@
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-logo">
-        <span class="tr">TR</span><span class="bb">BB</span>
-        <small>管理後台 v1.0</small>
+        <img v-if="logoImage" :src="logoImage" class="sidebar-logo-img" alt="Logo" />
+        <template v-else>
+          <span class="tr">TR</span><span class="bb">BB</span>
+        </template>
+        <small>管理後台</small>
       </div>
       <nav class="sidebar-nav">
         <div class="nav-section">總覽</div>
@@ -34,6 +37,10 @@
         </RouterLink>
         <RouterLink to="/training" class="nav-item" :class="{ active: route.path.startsWith('/training') }">
           <span class="nav-icon">📔</span> 訓練日記
+        </RouterLink>
+        <div class="nav-section">系統</div>
+        <RouterLink to="/settings" class="nav-item" :class="{ active: route.path.startsWith('/settings') }">
+          <span class="nav-icon">⚙️</span> 網站設定
         </RouterLink>
 
         <div class="nav-section">內容</div>
@@ -67,11 +74,23 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { RouterView, RouterLink, useRoute, useRouter } from 'vue-router'
 import { useAdminStore } from '@/stores/admin'
+import api from '@/services/api'
 
 const route = useRoute()
+
+// 從後台 API 取得 logo 設定
+const logoImage = ref('')
+onMounted(async () => {
+  try {
+    const { data } = await api.get('/settings')
+    const all = Object.values(data).flat()
+    const logoSetting = all.find(s => s.key === 'logo_image')
+    if (logoSetting?.value) logoImage.value = logoSetting.value
+  } catch {}
+})
 const router = useRouter()
 const admin = useAdminStore()
 const store = admin  // alias for template v-if checks
@@ -84,6 +103,7 @@ const pageTitles = {
   '/products': '商品管理',
   '/orders': '訂單管理',
   '/training': '訓練日記管理',
+  '/settings': '網站設定',
   '/announcements': '公告管理',
 }
 const pageTitle = computed(() => pageTitles[route.path] || 'TRBB Admin')

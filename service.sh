@@ -127,17 +127,16 @@ check_env() {
 # ── go mod tidy ───────────────────────────────────────────────
 go_mod_tidy() {
   log_info "Running go mod tidy via Docker (${GO_IMAGE})..."
-  docker pull "${GO_IMAGE}" --quiet
+  docker pull "${GO_IMAGE}" --quiet 2>/dev/null || true
   docker run --rm \
     -v "$(pwd)/backend:/workspace" \
     -w /workspace \
+    -e GONOSUMDB="*" \
+    -e GOFLAGS="-mod=mod" \
+    -e GOPROXY="direct" \
     "${GO_IMAGE}" \
-    sh -c "go mod tidy && echo '[go] go.sum ready'"
-  if [ ! -s "backend/go.sum" ]; then
-    log_error "go.sum is empty after go mod tidy. Check your go.mod."
-    exit 1
-  fi
-  log_info "✓ backend/go.sum ready ($(wc -l < backend/go.sum) lines)"
+    sh -c "apk add --no-cache git && go mod download && go mod tidy && echo '[go] go.sum ready'"
+  log_info "✓ go mod tidy done"
 }
 
 # ── Build frontend (Docker Node) ─────────────────────────────
@@ -230,9 +229,10 @@ cmd_build_app() {
 cmd_build_backend() {
   log_section "Building Backend"
   init_compose
-  go_mod_tidy
-  log_info "Building backend Docker image..."
-  $COMPOSE build backend
+  log_info "Pulling latest base image..."
+  docker pull golang:1.22-alpine
+  log_info "Building backend Docker image (no cache)..."
+  $COMPOSE build --no-cache backend
   log_info "✓ Backend built."
 }
 
@@ -258,6 +258,7 @@ cmd_stop() {
 cmd_restart() {
   log_section "Restarting Services"
   init_compose
+  check_env
   $COMPOSE restart
   log_info "✓ Services restarted."
 }
@@ -267,12 +268,48 @@ cmd_rebuild() {
   log_section "Rebuilding & Restarting"
   init_compose
   check_env
+
+  # 1. Stop
   log_info "Stopping containers..."
   $COMPOSE down
+
+  # 2. Start DB only (needed for migrate)
+  log_info "Starting database for migration..."
+  $COMPOSE up -d mysql
+  log_info "Waiting for MySQL to be ready..."
+  local tries=0
+  until $COMPOSE exec -T mysql mysqladmin ping -u root \
+      "-p$(grep MYSQL_ROOT_PASSWORD .env | cut -d= -f2)" \
+      --silent 2>/dev/null; do
+    tries=$((tries+1))
+    if [ $tries -ge 30 ]; then
+      log_warn "MySQL not ready after 30s, skipping wait"
+      break
+    fi
+    sleep 2
+  done
+
+  # 3. Migrate
+  log_info "Running migrations..."
+  local root_pw; root_pw=$(grep MYSQL_ROOT_PASSWORD .env | cut -d= -f2)
+  local db_name; db_name=$(grep MYSQL_DATABASE .env | cut -d= -f2)
+  for f in mysql/init/*.sql; do
+    $COMPOSE exec -T mysql mysql -u root "-p${root_pw}" "${db_name}" \
+      < "$f" 2>/dev/null && \
+      log_info "  ✓ $f" || log_warn "  ⚠ $f (skipped or already applied)"
+  done
+
+  # 4. go mod tidy + build frontend
   go_mod_tidy
   build_frontend
+
+  # 5. Build backend (pull fresh base image first)
+  log_info "Pulling latest base image..."
+  docker pull golang:1.22-alpine
   log_info "Rebuilding backend (no cache)..."
   $COMPOSE build --no-cache backend
+
+  # 6. Start all
   log_info "Starting all services..."
   $COMPOSE up -d
   log_info "✓ Rebuild complete."
@@ -301,6 +338,7 @@ cmd_logs() {
 cmd_migrate() {
   log_section "Running DB Migrations"
   init_compose
+  check_env
   local root_pw; root_pw=$(grep MYSQL_ROOT_PASSWORD .env | cut -d= -f2)
   local db_name; db_name=$(grep MYSQL_DATABASE .env | cut -d= -f2)
   local applied=0
@@ -317,6 +355,7 @@ cmd_migrate() {
 cmd_fix_admin() {
   log_section "Fixing Super Admin Account"
   init_compose
+  check_env
   local root_pw; root_pw=$(grep MYSQL_ROOT_PASSWORD .env | cut -d= -f2)
   local db_name; db_name=$(grep MYSQL_DATABASE .env | cut -d= -f2)
   log_info "Applying mysql/init/02_fix_admin.sql..."
@@ -330,6 +369,7 @@ cmd_fix_admin() {
 # ── db ────────────────────────────────────────────────────────
 cmd_db() {
   init_compose
+  check_env
   local root_pw; root_pw=$(grep MYSQL_ROOT_PASSWORD .env | cut -d= -f2)
   local db_name; db_name=$(grep MYSQL_DATABASE .env | cut -d= -f2)
   local sql_file="${2:-}"

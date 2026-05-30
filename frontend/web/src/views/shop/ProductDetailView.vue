@@ -1,15 +1,5 @@
 <template>
   <div class="product-page">
-    <nav class="navbar">
-      <div class="container nav-inner">
-        <RouterLink to="/" class="trbb-logo nav-logo"><span class="tr">TR</span><span class="bb">BB</span></RouterLink>
-        <div class="flex items-center gap-2">
-          <RouterLink to="/shop" class="nav-link">← 商城</RouterLink>
-          <RouterLink v-if="auth.isLoggedIn" to="/me" class="btn btn-ghost btn-sm">會員中心</RouterLink>
-          <RouterLink v-else to="/login" class="btn btn-primary btn-sm">登入</RouterLink>
-        </div>
-      </div>
-    </nav>
 
     <div v-if="loading" class="loading-full"><div class="loading-spinner"></div></div>
 
@@ -285,17 +275,12 @@ onMounted(async () => {
 
 <style scoped>
 .product-page { background:var(--color-bg);min-height:100vh; }
-.navbar { position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(0,0,0,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--color-border); }
-.nav-inner { display:flex;align-items:center;justify-content:space-between;height:64px; }
-.nav-logo { font-size:2rem; }
-.nav-link { font-family:var(--font-cond);font-weight:600;letter-spacing:.05em;font-size:.85rem;color:var(--color-gray-1); }
 .nav-link:hover { color:var(--color-primary); }
-.btn-sm { padding:.4rem 1rem;font-size:.82rem; }
 .loading-full { display:flex;align-items:center;justify-content:center;height:100vh; }
 .loading-spinner { width:32px;height:32px;border:3px solid var(--color-border);border-top-color:var(--color-primary);border-radius:50%;animation:spin .7s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg) } }
 
-.product-main { display:grid;grid-template-columns:1fr 1fr;gap:3rem;padding-top:calc(64px+2rem);padding-bottom:4rem;align-items:start; }
+.product-main { display:grid;grid-template-columns:1fr 1fr;gap:3rem;padding-top:calc(64px + 2rem);padding-bottom:4rem;align-items:start; }
 @media(max-width:768px){ .product-main { grid-template-columns:1fr } }
 
 /* Gallery */

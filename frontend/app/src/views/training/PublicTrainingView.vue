@@ -1,17 +1,5 @@
 <template>
   <div class="training-pub-page">
-    <nav class="navbar">
-      <div class="container nav-inner">
-        <RouterLink to="/" class="trbb-logo nav-logo"><span class="tr">TR</span><span class="bb">BB</span></RouterLink>
-        <div class="flex items-center gap-2">
-          <RouterLink to="/events" class="nav-link">賽事</RouterLink>
-          <RouterLink to="/shop" class="nav-link">商城</RouterLink>
-          <RouterLink v-if="auth.isLoggedIn" to="/me/training" class="nav-link">我的日記</RouterLink>
-          <RouterLink v-if="auth.isLoggedIn" to="/me" class="btn btn-ghost btn-sm">會員中心</RouterLink>
-          <RouterLink v-else to="/login" class="btn btn-primary btn-sm">登入</RouterLink>
-        </div>
-      </div>
-    </nav>
 
     <div class="container" style="padding-top:calc(64px + 2rem);padding-bottom:4rem">
       <div class="page-hero">
@@ -108,12 +96,7 @@ onMounted(fetchLogs)
 </script>
 
 <style scoped>
-.navbar { position:fixed;top:0;left:0;right:0;z-index:100;background:rgba(0,0,0,.9);backdrop-filter:blur(12px);border-bottom:1px solid var(--color-border); }
-.nav-inner { display:flex;align-items:center;justify-content:space-between;height:64px; }
-.nav-logo { font-size:2rem; }
-.nav-link { font-family:var(--font-cond);font-weight:600;letter-spacing:.05em;text-transform:uppercase;font-size:.85rem;color:var(--color-gray-1); }
 .nav-link:hover { color:var(--color-primary); }
-.btn-sm { padding:.4rem 1rem;font-size:.82rem; }
 .page-hero { padding:3rem 0 2rem;text-align:center; }
 .page-hero-tag { font-family:var(--font-cond);font-size:.75rem;font-weight:700;letter-spacing:.3em;color:var(--color-primary);margin-bottom:.75rem; }
 .page-hero-title { font-family:var(--font-display);font-size:clamp(3rem,8vw,5rem);margin-bottom:.75rem; }

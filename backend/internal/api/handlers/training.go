@@ -1,10 +1,15 @@
 package handlers
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"trbb/internal/config"
@@ -108,6 +113,22 @@ func (h *TrainingHandler) Update(c *gin.Context) {
 }
 
 // DELETE /v1/api/training/:id
+// PATCH /v1/api/training/:id/public
+func (h *TrainingHandler) PatchPublic(c *gin.Context) {
+	id, err := parseID(c, "id")
+	if err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"}); return }
+	var body struct {
+		IsPublic bool `json:"is_public"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return
+	}
+	if err := h.trainingSvc.PatchPublic(c.Request.Context(), id, mustUserID(c), body.IsPublic); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新失敗"}); return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "已更新"})
+}
+
 func (h *TrainingHandler) Delete(c *gin.Context) {
 	id, err := parseID(c, "id")
 	if err != nil { c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"}); return }
@@ -270,4 +291,148 @@ func getOptionalUserID(c *gin.Context) uint64 {
 		return id
 	}
 	return 0
+}
+
+// ── Strava OAuth 2.0 Handlers ─────────────────────────────────
+
+// GET /v1/api/me/strava/status
+func (h *TrainingHandler) StravaStatus(c *gin.Context) {
+	token, err := h.trainingSvc.GetStravaToken(c.Request.Context(), mustUserID(c))
+	if err != nil || token == nil {
+		cfg := h.cfg.Third.Strava
+		apiConfigured := cfg.ClientID != "" && cfg.ClientSecret != ""
+		c.JSON(http.StatusOK, gin.H{
+			"connected":      false,
+			"api_configured": apiConfigured,
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"connected":         true,
+		"strava_athlete_id": token.StravaAthleteID,
+		"athlete_name":      token.AthleteName,
+		"last_sync_at":      token.LastSyncAt,
+	})
+}
+
+// GET /v1/api/me/strava/connect  → return OAuth2 redirect URL
+func (h *TrainingHandler) StravaConnect(c *gin.Context) {
+	cfg := h.cfg.Third.Strava
+	if cfg.ClientID == "" || cfg.ClientSecret == "" {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Strava API 尚未設定，請聯繫管理員",
+		})
+		return
+	}
+	// Encode userID in state so callback can identify the user
+	userID := mustUserID(c)
+	state := fmt.Sprintf("%d", userID)
+
+	authURL := fmt.Sprintf(
+		"%s?client_id=%s&redirect_uri=%s&response_type=code&approval_prompt=auto&scope=read,activity:read_all&state=%s",
+		cfg.AuthURL, cfg.ClientID, url.QueryEscape(cfg.RedirectURI), state,
+	)
+	c.JSON(http.StatusOK, gin.H{"auth_url": authURL})
+}
+
+// DELETE /v1/api/me/strava/disconnect
+func (h *TrainingHandler) StravaDisconnect(c *gin.Context) {
+	if err := h.trainingSvc.DeleteStravaToken(c.Request.Context(), mustUserID(c)); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "解除連結失敗"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "已解除 Strava 連結"})
+}
+
+// POST /v1/api/training/strava/sync
+func (h *TrainingHandler) StravaSync(c *gin.Context) {
+	count, err := h.trainingSvc.SyncStravaActivities(c.Request.Context(), mustUserID(c))
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "同步完成", "synced": count})
+}
+
+// GET /v1/third/strava/callback  (Strava redirects here after user authorizes)
+func (h *TrainingHandler) StravaCallback(c *gin.Context) {
+	code     := c.Query("code")
+	errParam := c.Query("error")
+
+	if errParam != "" {
+		c.Redirect(302, "/me/strava?error=access_denied")
+		return
+	}
+	if code == "" {
+		c.JSON(400, gin.H{"error": "missing authorization code"})
+		return
+	}
+
+	cfg := h.cfg.Third.Strava
+	if cfg.ClientID == "" || cfg.ClientSecret == "" {
+		c.JSON(503, gin.H{"error": "Strava API not configured"})
+		return
+	}
+
+	// Exchange authorization code for tokens
+	formData := url.Values{
+		"client_id":     {cfg.ClientID},
+		"client_secret": {cfg.ClientSecret},
+		"code":          {code},
+		"grant_type":    {"authorization_code"},
+	}
+	resp, err := http.PostForm(cfg.TokenURL, formData)
+	if err != nil {
+		c.Redirect(302, "/me/strava?error=token_exchange_failed")
+		return
+	}
+	defer resp.Body.Close()
+
+	var tokenResp struct {
+		AccessToken  string `json:"access_token"`
+		RefreshToken string `json:"refresh_token"`
+		TokenType    string `json:"token_type"`
+		ExpiresAt    int64  `json:"expires_at"`
+		Athlete struct {
+			ID        int64  `json:"id"`
+			Firstname string `json:"firstname"`
+			Lastname  string `json:"lastname"`
+		} `json:"athlete"`
+	}
+	body, _ := io.ReadAll(resp.Body)
+	if err := json.Unmarshal(body, &tokenResp); err != nil || tokenResp.AccessToken == "" {
+		c.Redirect(302, "/me/strava?error=invalid_response")
+		return
+	}
+
+	// Get user ID from state param (encode userID in state during /connect)
+	// Since callback is unauthenticated, use state to carry userID
+	state := c.Query("state")
+	var userID uint64
+	if state != "" {
+		fmt.Sscanf(state, "%d", &userID)
+	}
+	if userID == 0 {
+		c.Redirect(302, "/me/strava?error=missing_user")
+		return
+	}
+
+	expiresAt := time.Unix(tokenResp.ExpiresAt, 0)
+	athleteName := strings.TrimSpace(tokenResp.Athlete.Firstname + " " + tokenResp.Athlete.Lastname)
+
+	if err := h.trainingSvc.SaveStravaToken(
+		c.Request.Context(), userID,
+		tokenResp.AccessToken, tokenResp.RefreshToken, tokenResp.TokenType,
+		&expiresAt, tokenResp.Athlete.ID, athleteName,
+	); err != nil {
+		c.Redirect(302, "/me/strava?error=save_failed")
+		return
+	}
+
+	// Trigger initial sync (last 30 days) — default private
+	go func() {
+		h.trainingSvc.SyncStravaActivities(c.Request.Context(), userID)
+	}()
+
+	c.Redirect(302, "/me/strava?success=1")
 }

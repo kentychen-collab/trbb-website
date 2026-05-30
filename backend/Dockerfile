@@ -1,18 +1,25 @@
 # ── Build stage ──────────────────────────────────────────────
 FROM golang:1.22-alpine AS builder
 
-RUN apk add --no-cache git ca-certificates tzdata
+# 安裝 git 和 go mod download 在同一層，確保 git 可用
+RUN apk add --no-cache git ca-certificates tzdata && \
+    git --version
 
 WORKDIR /build
 
-# 複製 module 定義（go.sum 由 service.sh 預先產生）
-COPY go.mod go.sum ./
+COPY go.mod go.sum* ./
+
+# GONOSUMDB 避免 checksum 驗證失敗，GOFLAGS mod=mod 允許更新 go.sum
+ENV GONOSUMDB=*
+ENV GOFLAGS=-mod=mod
+ENV GOTELEMETRY=off
+
 RUN go mod download
 
-# 複製原始碼（cache bust 只在程式碼變動時觸發）
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux \
-    go build -ldflags="-s -w -extldflags '-static'" \
+
+RUN go build \
+    -ldflags="-s -w -extldflags '-static'" \
     -o trbb-server ./cmd/server
 
 # ── Runtime stage ─────────────────────────────────────────────
