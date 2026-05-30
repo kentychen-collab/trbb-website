@@ -19,19 +19,6 @@ desktop.ini
 *.sublime-project
 *.sublime-workspace
 
-# ── Environment & Secrets ───────────────────────────────────
-.env
-.env.local
-.env.*.local
-backend/.env
-frontend/web/.env.local
-frontend/app/.env.local
-frontend/admin/.env.local
-*.pem
-*.key
-*.crt
-*.p12
-
 # ── Node.js / Frontend ──────────────────────────────────────
 node_modules/
 frontend/web/node_modules/

@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════
--- Migration: 03_user_profile_fields.sql
+-- Migration: 04_user_profile_fields.sql
 -- 擴充 users 資料表，加入完整會員資料欄位
 -- 使用 stored procedure 避免 MySQL 8.0 IF NOT EXISTS bug
 -- ═══════════════════════════════════════════════════════════

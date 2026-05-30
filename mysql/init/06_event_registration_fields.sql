@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════
--- Migration: 04_event_registration_fields.sql
+-- Migration: 06_event_registration_fields.sql
 -- 在 event_registrations 加入報名表單快照欄位
 -- ═══════════════════════════════════════════════════════════
 

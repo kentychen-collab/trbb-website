@@ -1,5 +1,5 @@
 -- ═══════════════════════════════════════════════════════════
--- Migration: 06_training_fields.sql
+-- Migration: 05_training_fields.sql
 -- 擴充 training_logs 加入 GPX/FIT/地圖路徑欄位
 -- 新增 garmin_tokens 表儲存 OAuth token
 -- ═══════════════════════════════════════════════════════════

@@ -18,6 +18,7 @@ func RegisterRoutes(r *gin.RouterGroup, db *database.DB, rdb *cache.Cache,
 	userSvc   := services.NewUserService(db, cfg.App.SecretKey)
 	eventSvc  := services.NewEventService(db)
 	shopSvc      := services.NewShopService(db)
+	dashboardH   := adminHandlers.NewDashboardHandler(db)
 	sitesSvc     := services.NewSiteSettingsService(db)
 	trainingSvc  := services.NewTrainingService(db, minio)
 	userH        := adminHandlers.NewAdminUserHandler(userSvc)
@@ -37,7 +38,7 @@ func RegisterRoutes(r *gin.RouterGroup, db *database.DB, rdb *cache.Cache,
 	// ── Protected (role >= 8) ────────────────────────────────
 	a := r.Group("", middleware.JWT(cfg.App.SecretKey), middleware.RequireRole(8))
 	{
-		a.GET("/dashboard", func(c *gin.Context) { c.JSON(200, gin.H{"msg": "ok"}) })
+		a.GET("/dashboard", dashboardH.Get)
 
 		// ── 一般會員管理 ─────────────────────────────────────
 		members := a.Group("/members")
