@@ -131,23 +131,31 @@
         <div v-else class="training-grid">
           <RouterLink v-for="log in trainingLogs" :key="log.id"
             :to="`/training/${log.id}`" class="training-card card">
-            <!-- 封面照片 or 地圖佔位 -->
+            <!-- 封面照片 > 路線圖 > 運動圖示 -->
             <div class="training-cover" :class="`sport-${log.sport_type}`">
               <img v-if="log.photos && log.photos.length"
                 :src="imgUrl(log.photos[0])" :alt="log.title" class="cover-img" />
+              <img v-else-if="log.map_thumbnail_url || log.cover_url"
+                :src="log.map_thumbnail_url || log.cover_url" :alt="log.title" class="cover-img" />
               <div v-else class="cover-icon">{{ sportIcon(log.sport_type) }}</div>
               <span class="sport-badge">{{ sportLabel(log.sport_type) }}</span>
             </div>
             <div class="training-body">
               <div class="training-meta text-gray text-sm">
                 <span>{{ log.display_name || log.username }}</span>
-                <span>{{ log.date }}</span>
+                <span>{{ fmtDateTime(log.created_at) || fmtDate(log.date) }}</span>
               </div>
               <h3 class="training-title">{{ log.title }}</h3>
               <div class="training-stats">
                 <span v-if="log.distance_km">📏 {{ Number(log.distance_km).toFixed(2) }} km</span>
                 <span v-if="log.duration_min">⏱ {{ fmtDuration(log.duration_min) }}</span>
+                <span v-if="log.avg_pace">🏃 {{ log.avg_pace }}/km</span>
                 <span v-if="log.avg_heart_rate">❤️ {{ log.avg_heart_rate }} bpm</span>
+                <span v-if="log.elevation_m">▲ {{ log.elevation_m }}m</span>
+                <span v-if="log.calories">🔥 {{ log.calories }} kcal</span>
+              </div>
+              <div v-if="log.source && log.source !== 'manual'" class="training-source">
+                {{ { strava:'Strava', garmin:'Garmin', gpx:'GPX', fit:'FIT' }[log.source] || log.source }}
               </div>
             </div>
           </RouterLink>
@@ -226,6 +234,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { fmtDate, fmtTime, fmtDateTime, fmtRelative } from '@/utils/time'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useSiteSettingsStore } from '@/stores/siteSettings'
@@ -460,4 +469,5 @@ onMounted(() => { fetchLatestEvents(); fetchTrainingLogs(); fetchProducts() })
 .pmc-title { font-weight:700; font-size:.9rem; margin-bottom:.3rem; color:var(--color-text); }
 .pmc-price { font-family:var(--font-cond,'Barlow Condensed',sans-serif); font-size:1.1rem; font-weight:700; color:var(--color-primary); }
 
+.training-source { font-size:.7rem; color:var(--color-gray-2); margin-top:.3rem; }
 </style>

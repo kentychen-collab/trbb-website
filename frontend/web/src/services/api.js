@@ -6,6 +6,15 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' }
 })
 
+// Request interceptor – 自動帶入 JWT token
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('trbb_token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
 // Response interceptor – auto handle 401
 api.interceptors.response.use(
   res => res,

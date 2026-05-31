@@ -70,6 +70,10 @@ type TrainingLog struct {
 	StartLng         *float64    `json:"start_lng,omitempty"`
 	Source           string      `json:"source"` // manual|gpx|fit|garmin
 	GarminActivityID string      `json:"garmin_activity_id,omitempty"`
+	DescentM         *int        `json:"descent_m,omitempty"`
+	StartTime        *time.Time  `json:"start_time,omitempty"`
+	MapThumbnailURL  string      `json:"map_thumbnail_url,omitempty"`
+	CoverURL         string      `json:"cover_url,omitempty"`
 	CreatedAt        time.Time   `json:"created_at"`
 	UpdatedAt        time.Time   `json:"updated_at"`
 
@@ -88,6 +92,8 @@ type GarminToken struct {
 	GarminUserID  string     `json:"garmin_user_id"`
 	Scope         string     `json:"scope"`
 	LastSyncAt    *time.Time `json:"last_sync_at"`
+	SyncPublic    bool       `json:"sync_public"`
+	AutoSync      bool       `json:"auto_sync"`
 	CreatedAt     time.Time  `json:"created_at"`
 	UpdatedAt     time.Time  `json:"updated_at"`
 }
@@ -103,6 +109,8 @@ type StravaToken struct {
 	StravaAthleteID int64      `json:"strava_athlete_id"`
 	AthleteName     string     `json:"athlete_name"`
 	LastSyncAt      *time.Time `json:"last_sync_at"`
+	SyncPublic      bool       `json:"sync_public"`
+	AutoSync        bool       `json:"auto_sync"`
 	CreatedAt       time.Time  `json:"created_at"`
 	UpdatedAt       time.Time  `json:"updated_at"`
 }

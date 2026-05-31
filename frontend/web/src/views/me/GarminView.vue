@@ -2,61 +2,53 @@
   <div class="garmin-page">
     <h1 class="section-title">Garmin 串接</h1>
     <p class="text-gray" style="margin-bottom:2rem">
-      連結您的 Garmin Connect 帳號，自動將訓練資料匯入訓練日記。
+      連結您的 Garmin 帳號，自動將訓練活動匯入訓練日記。
     </p>
 
-    <!-- ── 連結狀態卡片 ──────────────────────────────── -->
+    <!-- 連結狀態卡 -->
     <div class="status-card card">
       <div class="status-left">
         <div class="garmin-logo">⌚</div>
         <div class="status-info">
           <div class="status-title">
-            <span v-if="garminStatus === 'connected'" class="dot connected"></span>
-            <span v-else-if="garminStatus === 'loading'" class="dot"></span>
-            <span v-else class="dot disconnected"></span>
+            <span class="dot" :class="dotClass"></span>
             {{ statusTitle }}
           </div>
-          <div class="status-sub text-gray">
-            {{ statusSub }}
-          </div>
+          <div class="text-gray">{{ statusSub }}</div>
           <div v-if="tokenInfo" class="token-meta text-gray">
-            <span>Garmin 帳號 ID：{{ tokenInfo.garmin_user_id || '—' }}</span>
-            <span v-if="tokenInfo.last_sync_at">
-              　上次同步：{{ fmt(tokenInfo.last_sync_at) }}
-            </span>
+            <span v-if="tokenInfo.last_sync_at">上次同步：{{ fmt(tokenInfo.last_sync_at) }}</span>
           </div>
         </div>
       </div>
       <div class="status-actions">
         <template v-if="garminStatus === 'connected'">
           <div class="sync-options">
-            <label class="public-switch">
-              <span class="switch-label">同步後設為</span>
-              <button class="pub-toggle" :class="{ public: syncPublic }"
+            <label class="pref-row">
+              <span class="pref-label">同步後設為</span>
+              <button class="pref-toggle public-tog" :class="{ public: syncPublic }"
                 @click="syncPublic = !syncPublic" type="button">
                 {{ syncPublic ? '🌐 公開' : '🔒 私人' }}
               </button>
             </label>
             <button class="btn btn-primary btn-sm" @click="syncNow" :disabled="syncing">
               <span v-if="syncing" class="spinner"></span>
-              {{ syncing ? '同步中...' : '🔄 同步近 30 天' }}
+              {{ syncing ? '同步中...' : '🔄 同步近 90 天' }}
             </button>
             <button class="btn btn-ghost btn-sm" @click="confirmDisconnect">解除連結</button>
           </div>
         </template>
         <template v-else-if="garminStatus === 'disconnected'">
-          <button class="btn btn-primary" @click="connectGarmin" :disabled="connecting">
-            <span v-if="connecting" class="spinner"></span>
-            {{ connecting ? '連接中...' : '連結 Garmin Connect' }}
+          <button class="btn btn-garmin" @click="connectGarmin" :disabled="connecting">
+            {{ connecting ? '連接中...' : '連結 Garmin' }}
           </button>
         </template>
         <template v-else-if="garminStatus === 'unavailable'">
-          <div class="unavail-badge">Garmin API 憑證未設定</div>
+          <div class="unavail-badge">Garmin API 尚未開放</div>
         </template>
       </div>
     </div>
 
-    <!-- ── 同步結果 ───────────────────────────────────── -->
+    <!-- 同步結果 -->
     <div v-if="syncResult" class="sync-result" :class="syncResult.ok ? 'ok' : 'err'">
       <template v-if="syncResult.ok">
         <span v-if="syncResult.count > 0">
@@ -68,12 +60,12 @@
       <template v-else>✗ {{ syncResult.msg }}</template>
     </div>
 
-    <!-- ── 說明卡片 ───────────────────────────────────── -->
+    <!-- 說明卡片 -->
     <div class="info-cards">
       <div class="info-card card">
         <div class="info-icon">🔐</div>
-        <h4>OAuth 授權</h4>
-        <p>透過 Garmin 官方 OAuth 1.0a 授權，TRBB 只能讀取活動資料，不會存取您的帳號密碼。</p>
+        <h4>OAuth 1.0a 授權</h4>
+        <p>透過 Garmin Health API，安全授權存取您的訓練資料。</p>
       </div>
       <div class="info-card card">
         <div class="info-icon">📊</div>
@@ -87,41 +79,6 @@
       </div>
     </div>
 
-    <!-- ── 申請進度（顯示 API 狀態）────────────────────── -->
-    <div class="apply-section card">
-      <h3 class="apply-title">Garmin Health API 申請進度</h3>
-      <div class="apply-steps">
-        <div class="apply-step done">
-          <span class="step-icon">✅</span>
-          <div><strong>技術框架建置</strong><br><span class="text-gray">OAuth 1.0a 流程、Token 儲存、資料同步架構已就緒</span></div>
-        </div>
-        <div class="apply-step" :class="apiConfigured ? 'done' : 'pending'">
-          <span class="step-icon">{{ apiConfigured ? '✅' : '⏳' }}</span>
-          <div>
-            <strong>Garmin Developer Partner 申請</strong><br>
-            <span class="text-gray">
-              {{ apiConfigured ? 'API 憑證已設定' : '申請網址：developer.garmin.com/health-api' }}
-            </span>
-          </div>
-        </div>
-        <div class="apply-step" :class="apiConfigured ? 'pending' : 'disabled'">
-          <span class="step-icon">{{ apiConfigured ? '⏳' : '⭕' }}</span>
-          <div><strong>填入 GARMIN_CLIENT_ID / CLIENT_SECRET</strong><br>
-            <span class="text-gray">於伺服器 backend/.env 設定後重啟後端即可啟用</span></div>
-        </div>
-        <div class="apply-step disabled">
-          <span class="step-icon">⭕</span>
-          <div><strong>上線使用</strong></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── 替代方案 ──────────────────────────────────── -->
-    <div class="alt-section card">
-      <h3>現在可用：手動上傳 GPX / FIT</h3>
-      <p class="text-gray">等待 Garmin API 審核期間，可先從 Garmin Connect 匯出 .gpx 或 .fit 檔案，手動上傳至訓練日記。</p>
-      <RouterLink to="/me/training" class="btn btn-primary" style="margin-top:1rem">前往訓練日記</RouterLink>
-    </div>
   </div>
 </template>
 

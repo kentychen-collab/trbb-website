@@ -312,6 +312,8 @@ func (h *TrainingHandler) StravaStatus(c *gin.Context) {
 		"strava_athlete_id": token.StravaAthleteID,
 		"athlete_name":      token.AthleteName,
 		"last_sync_at":      token.LastSyncAt,
+		"sync_public":       token.SyncPublic,
+		"auto_sync":         token.AutoSync,
 	})
 }
 
@@ -435,4 +437,38 @@ func (h *TrainingHandler) StravaCallback(c *gin.Context) {
 	}()
 
 	c.Redirect(302, "/me/strava?success=1")
+}
+
+// PATCH /v1/api/me/strava/sync_prefs
+func (h *TrainingHandler) UpdateStravaSyncPrefs(c *gin.Context) {
+	var body struct {
+		SyncPublic bool `json:"sync_public"`
+		AutoSync   bool `json:"auto_sync"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return
+	}
+	if err := h.trainingSvc.UpdateStravaSyncPrefs(
+		c.Request.Context(), mustUserID(c), body.SyncPublic, body.AutoSync,
+	); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新失敗"}); return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "設定已儲存"})
+}
+
+// PATCH /v1/api/me/garmin/sync_prefs
+func (h *TrainingHandler) UpdateGarminSyncPrefs(c *gin.Context) {
+	var body struct {
+		SyncPublic bool `json:"sync_public"`
+		AutoSync   bool `json:"auto_sync"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()}); return
+	}
+	if err := h.trainingSvc.UpdateGarminSyncPrefs(
+		c.Request.Context(), mustUserID(c), body.SyncPublic, body.AutoSync,
+	); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "更新失敗"}); return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "設定已儲存"})
 }

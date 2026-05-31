@@ -74,36 +74,46 @@
             </div>
           </div>
           <h3 class="tc-title">{{ log.title }}</h3>
-          <div class="tc-date">{{ log.date }}</div>
+          <div class="tc-date">{{ log.created_at ? fmtDateTime(log.created_at) : fmtDate(log.date) }}</div>
+          <!-- 地圖縮圖或封面 -->
+          <div class="tc-cover" v-if="log.cover_url || log.map_thumbnail_url">
+            <img :src="log.cover_url || log.map_thumbnail_url" :alt="log.title" />
+            <div class="tc-cover-badge" v-if="log.map_thumbnail_url && !log.cover_url">🗺 路線圖</div>
+          </div>
           <div class="tc-stats">
+
             <div class="stat-item" v-if="log.distance_km">
-              <span class="stat-val">{{ log.distance_km.toFixed(2) }}</span>
+              <span class="stat-val">{{ Number(log.distance_km).toFixed(2) }}</span>
               <span class="stat-unit">km</span>
             </div>
             <div class="stat-item" v-if="log.duration_min">
               <span class="stat-val">{{ formatDuration(log.duration_min) }}</span>
-              <span class="stat-unit">時間</span>
-            </div>
-            <div class="stat-item" v-if="log.avg_heart_rate">
-              <span class="stat-val">{{ log.avg_heart_rate }}</span>
-              <span class="stat-unit">avg bpm</span>
+              <span class="stat-unit">持續時間</span>
             </div>
             <div class="stat-item" v-if="log.avg_pace">
               <span class="stat-val">{{ log.avg_pace }}</span>
               <span class="stat-unit">/km</span>
             </div>
+            <div class="stat-item" v-if="log.avg_heart_rate">
+              <span class="stat-val">{{ log.avg_heart_rate }}</span>
+              <span class="stat-unit">avg bpm</span>
+            </div>
             <div class="stat-item" v-if="log.elevation_m">
-              <span class="stat-val">{{ log.elevation_m }}</span>
-              <span class="stat-unit">m 爬升</span>
+              <span class="stat-val">▲ {{ log.elevation_m }}</span>
+              <span class="stat-unit">m</span>
+            </div>
+            <div class="stat-item" v-if="log.descent_m">
+              <span class="stat-val">▼ {{ log.descent_m }}</span>
+              <span class="stat-unit">m</span>
             </div>
             <div class="stat-item" v-if="log.calories">
               <span class="stat-val">{{ log.calories }}</span>
               <span class="stat-unit">kcal</span>
             </div>
           </div>
-          <!-- Mini map preview if GPX route available -->
+          <!-- GPX 路線縮圖 -->
           <div v-if="log.route_points && log.route_points.length" class="tc-map-preview">
-            <canvas :id="`map-${log.id}`" width="100%" height="80"></canvas>
+            <img :src="staticMapUrl(log.route_points)" alt="路線圖" class="tc-map-img" />
           </div>
           <!-- Source badge -->
           <div class="tc-source" v-if="log.source !== 'manual'">
@@ -128,7 +138,10 @@
               {{ sportIcon(detailLog.sport_type) }} {{ sportLabel(detailLog.sport_type) }}
             </span>
             <h2>{{ detailLog.title }}</h2>
-            <div class="text-gray">{{ detailLog.date }}</div>
+            <div class="text-gray">
+              <span v-if="detailLog.created_at">{{ fmtDateTime(detailLog.created_at) }}</span>
+              <span v-else>{{ fmtDate(detailLog.date) }}</span>
+            </div>
           </div>
           <div class="detail-header-actions">
             <button class="btn btn-ghost btn-sm" @click="editLog(detailLog)">編輯</button>
@@ -145,11 +158,12 @@
           <!-- Stats grid -->
           <div class="detail-stats">
             <div class="dstat" v-if="detailLog.distance_km"><span class="dstat-val">{{ detailLog.distance_km.toFixed(2) }}</span><span class="dstat-lbl">公里</span></div>
-            <div class="dstat" v-if="detailLog.duration_min"><span class="dstat-val">{{ formatDuration(detailLog.duration_min) }}</span><span class="dstat-lbl">時間</span></div>
+            <div class="dstat" v-if="detailLog.duration_min"><span class="dstat-val">{{ formatDuration(detailLog.duration_min) }}</span><span class="dstat-lbl">持續時間</span></div>
             <div class="dstat" v-if="detailLog.avg_pace"><span class="dstat-val">{{ detailLog.avg_pace }}</span><span class="dstat-lbl">配速 /km</span></div>
             <div class="dstat" v-if="detailLog.avg_heart_rate"><span class="dstat-val">{{ detailLog.avg_heart_rate }}</span><span class="dstat-lbl">平均心率</span></div>
             <div class="dstat" v-if="detailLog.max_heart_rate"><span class="dstat-val">{{ detailLog.max_heart_rate }}</span><span class="dstat-lbl">最高心率</span></div>
-            <div class="dstat" v-if="detailLog.elevation_m"><span class="dstat-val">{{ detailLog.elevation_m }}</span><span class="dstat-lbl">爬升 m</span></div>
+            <div class="dstat" v-if="detailLog.elevation_m"><span class="dstat-val">▲ {{ detailLog.elevation_m }}</span><span class="dstat-lbl">爬升 m</span></div>
+            <div class="dstat" v-if="detailLog.descent_m"><span class="dstat-val">▼ {{ detailLog.descent_m }}</span><span class="dstat-lbl">下降 m</span></div>
             <div class="dstat" v-if="detailLog.calories"><span class="dstat-val">{{ detailLog.calories }}</span><span class="dstat-lbl">卡路里</span></div>
             <div class="dstat" v-if="detailLog.avg_speed_kph"><span class="dstat-val">{{ detailLog.avg_speed_kph }}</span><span class="dstat-lbl">平均速度</span></div>
           </div>
@@ -159,6 +173,10 @@
             <img v-for="(p, i) in detailLog.photos" :key="i" :src="imgUrl(p)" class="detail-photo" @click="openPhotoFull(p)" />
           </div>
 
+          <!-- Source -->
+          <div v-if="detailLog.source && detailLog.source !== 'manual'" class="detail-source-row">
+            <span class="source-badge">{{ sourceLabel(detailLog.source) }}</span>
+          </div>
           <!-- Note -->
           <div v-if="detailLog.note" class="detail-note">{{ detailLog.note }}</div>
 
@@ -304,6 +322,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { fmtDate, fmtTime, fmtDateTime } from '@/utils/time'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import TrainingMap from '@/components/TrainingMap.vue'
@@ -337,6 +356,14 @@ const fileInput = ref(null)
 const photoInput = ref(null)
 
 const IMAGE_BASE = import.meta.env.VITE_IMAGE_BASE_URL || ''
+
+function staticMapUrl(points) {
+  if (!points || !points.length) return ''
+  const step = Math.max(1, Math.floor(points.length / 15))
+  const sampled = points.filter((_, i) => i % step === 0).slice(0, 15)
+  const path = sampled.map(p => `${p[0]},${p[1]}`).join('|')
+  return `https://staticmap.openstreetmap.de/staticmap.php?size=400x120&path=color:0xe5191aFF|weight:3|${path}&zoom=14`
+}
 function imgUrl(path) {
   if (!path) return ''
   if (path.startsWith('http')) return path
@@ -354,7 +381,9 @@ const sportTypes = [
 ]
 function sportLabel(t) { return sportTypes.find(s=>s.value===t)?.label || '其他' }
 function sportIcon(t)  { return sportTypes.find(s=>s.value===t)?.icon || '🏅' }
-function sourceLabel(s) { return { gpx:'GPX匯入', fit:'FIT匯入', garmin:'Garmin同步' }[s] || s }
+function sourceLabel(s) {
+  return { gpx:'GPX匯入', fit:'FIT匯入', garmin:'Garmin同步', strava:'Strava同步', manual:'手動新增' }[s] || s
+}
 
 const emptyForm = () => ({
   title: '', sport_type: 1, date: new Date().toISOString().slice(0,10),
@@ -757,4 +786,10 @@ onMounted(async () => {
 .upload-icon { font-size:3rem; margin-bottom:1rem; }
 .upload-success { background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.3); border-radius:4px; color:#86efac; font-size:.85rem; padding:.6rem 1rem; margin-top:.75rem; display:flex; align-items:center; justify-content:space-between; }
 .delete-btn { color:var(--color-danger, #ef4444) !important; }
+.tc-cover { position:relative; border-radius:6px; overflow:hidden; margin-bottom:.75rem; max-height:140px; }
+.tc-cover img { width:100%; height:140px; object-fit:cover; display:block; }
+.tc-cover-badge { position:absolute; bottom:.4rem; right:.4rem; background:rgba(0,0,0,.55); color:#fff; font-size:.65rem; padding:.15rem .45rem; border-radius:3px; }
+.tc-map-img { width:100%; height:120px; object-fit:cover; border-radius:4px; display:block; }
+.detail-time { color:var(--color-gray-2); font-size:.82rem; margin-left:.5rem; }
+.detail-source-row { margin-bottom:.5rem; }
 </style>

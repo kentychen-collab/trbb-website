@@ -8,6 +8,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"net/url"
@@ -368,7 +369,8 @@ func (s *TrainingService) Delete(ctx context.Context, id, userID uint64) error {
 const trainingSelectSQL = `
 	SELECT t.id,t.uuid,t.user_id,t.title,t.sport_type,t.date,
 	       t.duration_min,t.distance_km,t.avg_heart_rate,t.max_heart_rate,
-	       t.calories,t.elevation_m,COALESCE(t.avg_pace,''),t.avg_speed_kph,t.power_avg,
+	       t.calories,t.elevation_m,
+	       COALESCE(t.avg_pace,''),t.avg_speed_kph,t.power_avg,
 	       COALESCE(t.note,''),t.is_public,COALESCE(t.photos,'[]'),
 	       COALESCE(t.gpx_file_path,''),COALESCE(t.fit_file_path,''),
 	       t.route_points,t.start_lat,t.start_lng,
@@ -424,7 +426,7 @@ func (s *TrainingService) List(ctx context.Context, in ListTrainingInput, viewer
 	if in.Page < 1 {
 		in.Page = 1
 	}
-	if in.PageSize < 1 || in.PageSize > 50 {
+	if in.PageSize < 1 || in.PageSize > 200 {
 		in.PageSize = 20
 	}
 
@@ -521,6 +523,14 @@ func (s *TrainingService) GetGarminToken(ctx context.Context, userID uint64) (*m
 	return t, nil
 }
 
+func (s *TrainingService) UpdateGarminSyncPrefs(ctx context.Context, userID uint64, syncPublic, autoSync bool) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE garmin_tokens SET sync_public=?, auto_sync=?, updated_at=NOW() WHERE user_id=?",
+		syncPublic, autoSync, userID,
+	)
+	return err
+}
+
 func (s *TrainingService) DeleteGarminToken(ctx context.Context, userID uint64) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM garmin_tokens WHERE user_id=?", userID)
 	return err
@@ -537,11 +547,13 @@ func scanTraining(row *sql.Row) (*models.TrainingLog, error) {
 	var startLat, startLng sql.NullFloat64
 	var dur, avgHR, maxHR, cal, elev, powerAvg sql.NullInt64
 	var distKm, avgSpeedKph sql.NullFloat64
+	var dateVal sql.NullTime
 
 	err := row.Scan(
-		&t.ID, &t.UUID, &t.UserID, &t.Title, &t.SportType, &t.Date,
+		&t.ID, &t.UUID, &t.UserID, &t.Title, &t.SportType, &dateVal,
 		&dur, &distKm, &avgHR, &maxHR,
-		&cal, &elev, &avgPace, &avgSpeedKph, &powerAvg,
+		&cal, &elev,
+		&avgPace, &avgSpeedKph, &powerAvg,
 		&t.Note, &t.IsPublic, &photosJSON,
 		&t.GpxFilePath, &t.FitFilePath,
 		&routeJSON, &startLat, &startLng,
@@ -555,13 +567,16 @@ func scanTraining(row *sql.Row) (*models.TrainingLog, error) {
 	if err != nil {
 		return nil, fmt.Errorf("scan training: %w", err)
 	}
+	if dateVal.Valid {
+		t.Date = dateVal.Time.Format("2006-01-02")
+	}
 	applyNullInts(t, dur, avgHR, maxHR, cal, elev, powerAvg)
-	if distKm.Valid    { t.DistanceKm = &distKm.Float64 }
+	if distKm.Valid      { t.DistanceKm = &distKm.Float64 }
 	if avgSpeedKph.Valid { t.AvgSpeedKph = &avgSpeedKph.Float64 }
-	if startLat.Valid  { t.StartLat = &startLat.Float64 }
-	if startLng.Valid  { t.StartLng = &startLng.Float64 }
-	t.AvgPace           = avgPace.String
-	t.GarminActivityID  = garminID.String
+	if startLat.Valid    { t.StartLat = &startLat.Float64 }
+	if startLng.Valid    { t.StartLng = &startLng.Float64 }
+	t.AvgPace          = avgPace.String
+	t.GarminActivityID = garminID.String
 	if photosJSON.Valid && photosJSON.String != "" {
 		_ = json.Unmarshal([]byte(photosJSON.String), &t.Photos)
 	}
@@ -580,11 +595,13 @@ func scanTrainingRow(rows *sql.Rows) (*models.TrainingLog, error) {
 	var startLat, startLng sql.NullFloat64
 	var dur, avgHR, maxHR, cal, elev, powerAvg sql.NullInt64
 	var distKm, avgSpeedKph sql.NullFloat64
+	var dateVal sql.NullTime
 
 	err := rows.Scan(
-		&t.ID, &t.UUID, &t.UserID, &t.Title, &t.SportType, &t.Date,
+		&t.ID, &t.UUID, &t.UserID, &t.Title, &t.SportType, &dateVal,
 		&dur, &distKm, &avgHR, &maxHR,
-		&cal, &elev, &avgPace, &avgSpeedKph, &powerAvg,
+		&cal, &elev,
+		&avgPace, &avgSpeedKph, &powerAvg,
 		&t.Note, &t.IsPublic, &photosJSON,
 		&t.GpxFilePath, &t.FitFilePath,
 		&routeJSON, &startLat, &startLng,
@@ -594,6 +611,9 @@ func scanTrainingRow(rows *sql.Rows) (*models.TrainingLog, error) {
 	)
 	if err != nil {
 		return nil, fmt.Errorf("scan training row: %w", err)
+	}
+	if dateVal.Valid {
+		t.Date = dateVal.Time.Format("2006-01-02")
 	}
 	applyNullInts(t, dur, avgHR, maxHR, cal, elev, powerAvg)
 	if distKm.Valid      { t.DistanceKm = &distKm.Float64 }
@@ -793,17 +813,27 @@ func (s *TrainingService) GetStravaToken(ctx context.Context, userID uint64) (*m
 	err := s.db.QueryRowContext(ctx, `
 		SELECT id, user_id, access_token, refresh_token, token_type,
 		       expires_at, strava_athlete_id, COALESCE(athlete_name,''),
-		       last_sync_at, created_at, updated_at
+		       last_sync_at, COALESCE(sync_public,0), COALESCE(auto_sync,0),
+		       created_at, updated_at
 		FROM strava_tokens WHERE user_id=?`, userID,
 	).Scan(
 		&t.ID, &t.UserID, &t.AccessToken, &t.RefreshToken, &t.TokenType,
 		&t.ExpiresAt, &t.StravaAthleteID, &t.AthleteName,
-		&t.LastSyncAt, &t.CreatedAt, &t.UpdatedAt,
+		&t.LastSyncAt, &t.SyncPublic, &t.AutoSync,
+		&t.CreatedAt, &t.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	return t, err
+}
+
+func (s *TrainingService) UpdateStravaSyncPrefs(ctx context.Context, userID uint64, syncPublic, autoSync bool) error {
+	_, err := s.db.ExecContext(ctx,
+		"UPDATE strava_tokens SET sync_public=?, auto_sync=?, updated_at=NOW() WHERE user_id=?",
+		syncPublic, autoSync, userID,
+	)
+	return err
 }
 
 func (s *TrainingService) DeleteStravaToken(ctx context.Context, userID uint64) error {
@@ -829,56 +859,86 @@ func (s *TrainingService) SyncStravaActivities(ctx context.Context, userID uint6
 		accessToken = newToken
 	}
 
-	// Fetch activities from last 30 days
-	after := time.Now().AddDate(0, 0, -30).Unix()
-	apiURL := fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities?after=%d&per_page=50", after)
-
-	req, _ := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-
-	client := &http.Client{Timeout: 30 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return 0, fmt.Errorf("Strava API 請求失敗: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode == 401 {
-		return 0, fmt.Errorf("Strava 授權已失效，請重新連結")
-	}
-	if resp.StatusCode != 200 {
-		return 0, fmt.Errorf("Strava API 回傳錯誤: %d", resp.StatusCode)
-	}
-
-	var activities []struct {
-		ID              int64   `json:"id"`
-		Name            string  `json:"name"`
-		Type            string  `json:"type"`
-		SportType       string  `json:"sport_type"`
-		StartDateLocal  string  `json:"start_date_local"`
-		MovingTime      int     `json:"moving_time"`
-		Distance        float64 `json:"distance"`
-		AverageHeartrate float64 `json:"average_heartrate"`
-		MaxHeartrate     float64 `json:"max_heartrate"`
-		TotalElevGain    float64 `json:"total_elevation_gain"`
-		Calories         float64 `json:"calories"`
-		Map struct {
+	// 分頁抓取所有近 90 天的活動（Strava 每頁最多 200 筆）
+	after := time.Now().AddDate(0, 0, -90).Unix()
+	var allActivities []struct {
+		ID               int64     `json:"id"`
+		Name             string    `json:"name"`
+		Type             string    `json:"type"`
+		SportType        string    `json:"sport_type"`
+		StartDateLocal   string    `json:"start_date_local"`
+		MovingTime       int       `json:"moving_time"`
+		Distance         float64   `json:"distance"`
+		AverageHeartrate float64   `json:"average_heartrate"`
+		MaxHeartrate     float64   `json:"max_heartrate"`
+		TotalElevGain    float64   `json:"total_elevation_gain"`
+		TotalDescentM    float64   `json:"total_elevation_loss"`
+		Calories         float64   `json:"calories"`
+		AverageSpeed     float64   `json:"average_speed"`
+		AveragePower     float64   `json:"average_watts"`
+		StartLatlng      []float64 `json:"start_latlng"`
+		Map              struct {
 			SummaryPolyline string `json:"summary_polyline"`
 		} `json:"map"`
 	}
 
-	body := make([]byte, 0, 4096)
-	buf := make([]byte, 4096)
-	for {
-		n, readErr := resp.Body.Read(buf)
-		body = append(body, buf[:n]...)
-		if readErr != nil {
+	// 分頁：每頁 200 筆，最多抓 5 頁（1000 筆）
+	for page := 1; page <= 5; page++ {
+		apiURL := fmt.Sprintf(
+			"https://www.strava.com/api/v3/athlete/activities?after=%d&per_page=200&page=%d",
+			after, page,
+		)
+		req, _ := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+
+		client := &http.Client{Timeout: 30 * time.Second}
+		resp, err := client.Do(req)
+		if err != nil {
 			break
 		}
+
+		if resp.StatusCode == 401 {
+			resp.Body.Close()
+			return 0, fmt.Errorf("Strava 授權已失效，請重新連結")
+		}
+		if resp.StatusCode != 200 {
+			resp.Body.Close()
+			break
+		}
+
+		pageBody, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		var pageActivities []struct {
+			ID               int64     `json:"id"`
+			Name             string    `json:"name"`
+			Type             string    `json:"type"`
+			SportType        string    `json:"sport_type"`
+			StartDateLocal   string    `json:"start_date_local"`
+			MovingTime       int       `json:"moving_time"`
+			Distance         float64   `json:"distance"`
+			AverageHeartrate float64   `json:"average_heartrate"`
+			MaxHeartrate     float64   `json:"max_heartrate"`
+			TotalElevGain    float64   `json:"total_elevation_gain"`
+			TotalDescentM    float64   `json:"total_elevation_loss"`
+			Calories         float64   `json:"calories"`
+			AverageSpeed     float64   `json:"average_speed"`
+			AveragePower     float64   `json:"average_watts"`
+			StartLatlng      []float64 `json:"start_latlng"`
+			Map              struct {
+				SummaryPolyline string `json:"summary_polyline"`
+			} `json:"map"`
+		}
+		if err := json.Unmarshal(pageBody, &pageActivities); err != nil || len(pageActivities) == 0 {
+			break
+		}
+		allActivities = append(allActivities, pageActivities...)
+		if len(pageActivities) < 200 {
+			break // 最後一頁
+		}
 	}
-	if err := json.Unmarshal(body, &activities); err != nil {
-		return 0, fmt.Errorf("解析 Strava 資料失敗")
-	}
+
+	activities := allActivities
 
 	// Map Strava sport types to our sport_type integers
 	sportMap := map[string]int{
@@ -921,16 +981,59 @@ func (s *TrainingService) SyncStravaActivities(ctx context.Context, userID uint6
 		elevM := int(act.TotalElevGain)
 		cal := int(act.Calories)
 
+		// 計算配速 (mm:ss/km)
+		avgPaceStr := ""
+		if act.Distance > 0 && act.MovingTime > 0 && (sportType == 1 || sportType == 4) {
+			secPerKm := float64(act.MovingTime) / (act.Distance / 1000.0)
+			paceMin := int(secPerKm) / 60
+			paceSec := int(secPerKm) % 60
+			avgPaceStr = fmt.Sprintf("%d:%02d", paceMin, paceSec)
+		}
+
+		// 起點座標
+		var startLat, startLng interface{}
+		if len(act.StartLatlng) == 2 {
+			startLat = act.StartLatlng[0]
+			startLng = act.StartLatlng[1]
+		}
+
+		// start_date_local 是台灣當地時間（UTC+8）
+		// 直接解析為台北時間，存成 UTC
+		taipei, _ := time.LoadLocation("Asia/Taipei")
+		if taipei == nil {
+			taipei = time.FixedZone("CST", 8*3600)
+		}
+		recordTime := time.Now().UTC()
+		if len(act.StartDateLocal) >= 16 {
+			// Strava start_date_local 格式無時區標記，是本地時間
+			s := act.StartDateLocal
+			if len(s) > 19 { s = s[:19] } // 截掉 timezone suffix
+			if t2, err2 := time.ParseInLocation("2006-01-02T15:04:05", s, taipei); err2 == nil {
+				recordTime = t2.UTC()
+			}
+		}
+
 		_, err := s.db.ExecContext(ctx, `
 			INSERT INTO training_logs
-			  (uuid, user_id, title, sport_type, date, duration_min, distance_km,
-			   avg_heart_rate, max_heart_rate, elevation_m, calories,
+			  (uuid, user_id, title, sport_type, date,
+			   duration_min, distance_km,
+			   avg_heart_rate, max_heart_rate, elevation_m,
+			   calories, avg_pace, avg_speed_kph, power_avg,
+			   start_lat, start_lng,
 			   source, garmin_activity_id, is_public, created_at, updated_at)
-			VALUES (?,?,?,?,?,?,?,?,?,?,?,'strava',?,0,NOW(),NOW())`,
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'strava',?,0,?,NOW())`,
 			uuid.New().String(),
-			userID, act.Name, sportType, date, nullInt(durationMin),
-			nullFloat(distKm), nullInt(avgHR), nullInt(maxHR),
-			nullInt(elevM), nullInt(cal), stravaID,
+			userID, act.Name, sportType, date,
+			nullInt(durationMin), nullFloat(distKm),
+			nullInt(avgHR), nullInt(maxHR),
+			nullInt(elevM),
+			nullInt(cal),
+			nullStr(avgPaceStr),
+			nullFloat(act.AverageSpeed*3.6),
+			nullInt(int(act.AveragePower)),
+			startLat, startLng,
+			stravaID,
+			recordTime,
 		)
 		if err == nil {
 			count++
@@ -992,3 +1095,154 @@ func (s *TrainingService) refreshStravaToken(ctx context.Context, userID uint64,
 func getEnvVal(key string) string { return os.Getenv(key) }
 func nullInt(v int) interface{}       { if v <= 0 { return nil }; return v }
 func nullFloat(v float64) interface{} { if v <= 0 { return nil }; return v }
+
+// GetStravaTokenByAthleteID — webhook 用，by Strava athlete_id 找 user
+func (s *TrainingService) GetStravaTokenByAthleteID(ctx context.Context, athleteID int64) (*models.StravaToken, error) {
+	t := &models.StravaToken{}
+	err := s.db.QueryRowContext(ctx, `
+		SELECT id, user_id, access_token, refresh_token, token_type,
+		       expires_at, strava_athlete_id, COALESCE(athlete_name,''),
+		       last_sync_at, COALESCE(sync_public,0), COALESCE(auto_sync,0),
+		       created_at, updated_at
+		FROM strava_tokens WHERE strava_athlete_id=?`, athleteID,
+	).Scan(
+		&t.ID, &t.UserID, &t.AccessToken, &t.RefreshToken, &t.TokenType,
+		&t.ExpiresAt, &t.StravaAthleteID, &t.AthleteName,
+		&t.LastSyncAt, &t.SyncPublic, &t.AutoSync,
+		&t.CreatedAt, &t.UpdatedAt,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	return t, err
+}
+
+// SyncStravaActivityByID — webhook 用，同步單一 activity
+func (s *TrainingService) SyncStravaActivityByID(ctx context.Context, userID uint64, activityID int64) (int, error) {
+	token, err := s.GetStravaToken(ctx, userID)
+	if err != nil || token == nil {
+		return 0, fmt.Errorf("token not found")
+	}
+
+	// 確認沒有重複
+	stravaIDStr := fmt.Sprintf("strava_%d", activityID)
+	var existing int
+	s.db.QueryRowContext(ctx,
+		"SELECT COUNT(*) FROM training_logs WHERE user_id=? AND garmin_activity_id=?",
+		userID, stravaIDStr).Scan(&existing)
+	if existing > 0 {
+		return 0, nil
+	}
+
+	// 取得 access token
+	accessToken := token.AccessToken
+	if token.ExpiresAt != nil && time.Now().After(*token.ExpiresAt) {
+		newToken, err := s.refreshStravaToken(ctx, userID, token.RefreshToken)
+		if err != nil {
+			return 0, err
+		}
+		accessToken = newToken
+	}
+
+	// 呼叫 Strava API 取單筆活動
+	apiURL := fmt.Sprintf("https://www.strava.com/api/v3/activities/%d", activityID)
+	req, _ := http.NewRequestWithContext(ctx, "GET", apiURL, nil)
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	client := &http.Client{Timeout: 15 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil || resp.StatusCode != 200 {
+		return 0, fmt.Errorf("strava API error")
+	}
+	defer resp.Body.Close()
+
+	var act struct {
+		ID              int64   `json:"id"`
+		Name            string  `json:"name"`
+		Type            string  `json:"type"`
+		SportType       string  `json:"sport_type"`
+		StartDateLocal  string  `json:"start_date_local"`
+		MovingTime      int     `json:"moving_time"`
+		Distance        float64 `json:"distance"`
+		AverageHeartrate float64 `json:"average_heartrate"`
+		MaxHeartrate     float64 `json:"max_heartrate"`
+		TotalElevGain    float64 `json:"total_elevation_gain"`
+		TotalDescentM    float64 `json:"total_elevation_loss"`
+		Calories         float64 `json:"calories"`
+		AverageSpeed     float64 `json:"average_speed"`
+		AveragePower     float64 `json:"average_watts"`
+		StartLatlng      []float64 `json:"start_latlng"`
+		Map struct {
+			SummaryPolyline string `json:"summary_polyline"`
+		} `json:"map"`
+	}
+	bodyBytes := make([]byte, 0)
+	buf := make([]byte, 4096)
+	for {
+		n, readErr := resp.Body.Read(buf)
+		bodyBytes = append(bodyBytes, buf[:n]...)
+		if readErr != nil { break }
+	}
+	if err := json.Unmarshal(bodyBytes, &act); err != nil {
+		return 0, err
+	}
+
+	sportMap := map[string]int{
+		"Run":1, "TrailRun":1, "VirtualRun":1,
+		"Swim":2, "OpenWaterSwim":2,
+		"Ride":3, "MountainBikeRide":3, "VirtualRide":3,
+		"Triathlon":4,
+		"WeightTraining":5, "Workout":5,
+	}
+	sportType := 6
+	if t2, ok := sportMap[act.SportType]; ok { sportType = t2 }
+	if t2, ok := sportMap[act.Type]; ok && sportType == 6 { sportType = t2 }
+
+	date := ""
+	if len(act.StartDateLocal) >= 10 { date = act.StartDateLocal[:10] }
+	durationMin := act.MovingTime / 60
+	distKm := act.Distance / 1000.0
+	avgHR := int(act.AverageHeartrate)
+	maxHR := int(act.MaxHeartrate)
+	elevM := int(act.TotalElevGain)
+	descentM := int(act.TotalDescentM)
+	cal := int(act.Calories)
+
+	avgPaceStr := ""
+	if act.Distance > 0 && act.MovingTime > 0 && (sportType == 1 || sportType == 4) {
+		secPerKm := float64(act.MovingTime) / (act.Distance / 1000.0)
+		avgPaceStr = fmt.Sprintf("%d:%02d", int(secPerKm)/60, int(secPerKm)%60)
+	}
+	mapThumb := ""
+	if act.Map.SummaryPolyline != "" {
+		mapThumb = "https://maps.googleapis.com/maps/api/staticmap?size=400x200&path=enc:" + act.Map.SummaryPolyline + "&key="
+	}
+	var startLat, startLng interface{}
+	if len(act.StartLatlng) == 2 { startLat = act.StartLatlng[0]; startLng = act.StartLatlng[1] }
+
+	_, err = s.db.ExecContext(ctx, `
+		INSERT INTO training_logs
+		  (uuid,user_id,title,sport_type,date,
+		   duration_min,distance_km,avg_heart_rate,max_heart_rate,
+		   elevation_m,descent_m,calories,avg_pace,avg_speed_kph,power_avg,
+		   start_lat,start_lng,map_thumbnail_url,
+		   source,garmin_activity_id,is_public,created_at,updated_at)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'strava',?,0,NOW(),NOW())`,
+		uuid.New().String(),
+		userID, act.Name, sportType, date,
+		nullInt(durationMin), nullFloat(distKm), nullInt(avgHR), nullInt(maxHR),
+		nullInt(elevM), nullInt(descentM), nullInt(cal),
+		nullStr(avgPaceStr), nullFloat(act.AverageSpeed*3.6), nullInt(int(act.AveragePower)),
+		startLat, startLng, nullStr(mapThumb),
+		stravaIDStr,
+	)
+	if err != nil { return 0, err }
+	return 1, nil
+}
+
+// SetLatestStravaActivityPublic — webhook 用，設定剛同步的活動為公開
+func (s *TrainingService) SetLatestStravaActivityPublic(ctx context.Context, userID uint64, activityID int64) {
+	stravaIDStr := fmt.Sprintf("strava_%d", activityID)
+	s.db.ExecContext(ctx,
+		"UPDATE training_logs SET is_public=1 WHERE user_id=? AND garmin_activity_id=?",
+		userID, stravaIDStr)
+}

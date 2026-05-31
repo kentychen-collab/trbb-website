@@ -24,18 +24,32 @@
       <div class="status-actions">
         <template v-if="stravaStatus === 'connected'">
           <div class="sync-options">
-            <label class="public-switch">
-              <span class="switch-label">同步後設為</span>
-              <button class="pub-toggle" :class="{ public: syncPublic }"
-                @click="syncPublic = !syncPublic" type="button">
-                {{ syncPublic ? '🌐 公開' : '🔒 私人' }}
+            <!-- 自動同步 -->
+            <label class="pref-row">
+              <span class="pref-label">Webhook 自動同步</span>
+              <button class="pref-toggle" :class="{ on: prefs.auto_sync }"
+                @click="togglePref('auto_sync')" type="button">
+                {{ prefs.auto_sync ? '🟢 開啟' : '⭕ 關閉' }}
               </button>
             </label>
-            <button class="btn btn-primary btn-sm" @click="syncNow" :disabled="syncing">
-              <span v-if="syncing" class="spinner"></span>
-              {{ syncing ? '同步中...' : '🔄 同步近 30 天' }}
-            </button>
-            <button class="btn btn-ghost btn-sm" @click="confirmDisconnect">解除連結</button>
+            <!-- 同步後公開 -->
+            <label class="pref-row">
+              <span class="pref-label">同步後設為</span>
+              <button class="pref-toggle public-tog" :class="{ public: prefs.sync_public }"
+                @click="togglePref('sync_public')" type="button">
+                {{ prefs.sync_public ? '🌐 公開' : '🔒 私人' }}
+              </button>
+            </label>
+            <div class="pref-hint" v-if="prefs.auto_sync">
+              ✓ 每次在 Strava 完成活動後，系統將自動匯入
+            </div>
+            <div class="sync-btns">
+              <button class="btn btn-primary btn-sm" @click="syncNow" :disabled="syncing">
+                <span v-if="syncing" class="spinner"></span>
+                {{ syncing ? '同步中...' : '🔄 手動同步近 90 天' }}
+              </button>
+              <button class="btn btn-ghost btn-sm" @click="confirmDisconnect">解除連結</button>
+            </div>
           </div>
         </template>
         <template v-else-if="stravaStatus === 'disconnected'">
@@ -67,77 +81,20 @@
       <div class="info-card card">
         <div class="info-icon">🔐</div>
         <h4>OAuth 2.0 授權</h4>
-        <p>透過 Strava 官方 OAuth 2.0，TRBB 僅讀取您的活動資料，不會存取帳號密碼。</p>
+        <p>透過 Strava 官方 OAuth 2.0，TRBB 僅讀取您的活動資料。</p>
       </div>
       <div class="info-card card">
         <div class="info-icon">📊</div>
         <h4>同步的資料</h4>
-        <p>距離、時間、配速、心率、卡路里、爬升、GPS 路線。支援跑步、游泳、騎車、鐵人三項等所有項目。</p>
+        <p>距離、時間、配速、心率、卡路里、爬升、GPS 路線，支援跑步、游泳、騎車、鐵人三項等。</p>
       </div>
       <div class="info-card card">
-        <div class="info-icon">🔄</div>
-        <h4>自動同步</h4>
-        <p>連結後可手動同步，或等待 Strava Webhook 推送（進階功能）。</p>
+        <div class="info-icon">🔔</div>
+        <h4>Webhook 自動同步</h4>
+        <p>開啟後，每次在 Strava 完成活動即自動匯入，無需手動操作。</p>
       </div>
     </div>
 
-    <!-- 申請進度 -->
-    <div class="apply-section card">
-      <h3 class="apply-title">Strava API 申請進度</h3>
-      <div class="apply-steps">
-        <div class="apply-step done">
-          <span class="step-icon">✅</span>
-          <div>
-            <strong>技術框架建置</strong><br>
-            <span class="text-gray">OAuth 2.0 流程、Token 儲存、資料同步架構已就緒</span>
-          </div>
-        </div>
-        <div class="apply-step" :class="apiConfigured ? 'done' : 'pending'">
-          <span class="step-icon">{{ apiConfigured ? '✅' : '⏳' }}</span>
-          <div>
-            <strong>申請 Strava API Application</strong><br>
-            <span class="text-gray">
-              {{ apiConfigured
-                ? 'API 憑證已設定'
-                : '申請網址：www.strava.com/settings/api → Create App' }}
-            </span>
-          </div>
-        </div>
-        <div class="apply-step" :class="apiConfigured ? 'pending' : 'disabled'">
-          <span class="step-icon">{{ apiConfigured ? '⏳' : '⭕' }}</span>
-          <div>
-            <strong>填入 STRAVA_CLIENT_ID / CLIENT_SECRET</strong><br>
-            <span class="text-gray">於伺服器 backend/.env 設定後重啟後端即可啟用</span>
-          </div>
-        </div>
-        <div class="apply-step disabled">
-          <span class="step-icon">⭕</span>
-          <div><strong>上線使用</strong></div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Strava vs Garmin 比較 -->
-    <div class="compare-card card">
-      <h3>Strava vs Garmin 比較</h3>
-      <div class="compare-table">
-        <div class="compare-header">
-          <div></div><div>Strava</div><div>Garmin</div>
-        </div>
-        <div class="compare-row" v-for="row in compareRows" :key="row.label">
-          <div class="compare-label">{{ row.label }}</div>
-          <div class="compare-val">{{ row.strava }}</div>
-          <div class="compare-val">{{ row.garmin }}</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 替代方案 -->
-    <div class="alt-section card">
-      <h3>現在可用：手動上傳 GPX / FIT</h3>
-      <p class="text-gray">等待 API 審核期間，可從 Strava 或 Garmin 匯出 .gpx 檔案，手動上傳至訓練日記。</p>
-      <RouterLink to="/me/training" class="btn btn-primary" style="margin-top:1rem">前往訓練日記</RouterLink>
-    </div>
   </div>
 </template>
 
@@ -146,9 +103,10 @@ import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import api from '@/services/api'
 
-const stravaStatus  = ref('loading')
-const syncPublic    = ref(false)   // 這次同步要不要公開
-const tokenInfo    = ref(null)
+const stravaStatus = ref('loading')
+const tokenInfo   = ref(null)
+const prefs       = ref({ sync_public: false, auto_sync: false })
+const prefSaving  = ref(false)
 const connecting   = ref(false)
 const syncing      = ref(false)
 const syncResult   = ref(null)
@@ -190,6 +148,10 @@ async function checkStatus() {
     if (data.connected) {
       stravaStatus.value = 'connected'
       tokenInfo.value = data
+      prefs.value = {
+        sync_public: data.sync_public || false,
+        auto_sync:   data.auto_sync   || false,
+      }
     } else {
       apiConfigured.value = data.api_configured !== false
       stravaStatus.value = data.api_configured === false ? 'unavailable' : 'disconnected'
@@ -197,6 +159,16 @@ async function checkStatus() {
   } catch {
     stravaStatus.value = 'disconnected'
   }
+}
+
+async function togglePref(key) {
+  prefs.value[key] = !prefs.value[key]
+  try {
+    await api.patch('/me/strava/sync_prefs', {
+      sync_public: prefs.value.sync_public,
+      auto_sync:   prefs.value.auto_sync,
+    })
+  } catch { prefs.value[key] = !prefs.value[key] } // revert on error
 }
 
 async function connectStrava() {
@@ -223,21 +195,28 @@ async function syncNow() {
     const { data } = await api.post('/training/strava/sync')
     const count = data.synced || 0
 
-    // 2. 如果選擇公開，取出剛同步的記錄批次 PATCH
-    if (syncPublic.value && count > 0) {
-      const { data: logs } = await api.get('/me/training', {
-        params: { page: 1, page_size: count + 10 }
-      })
-      const recentIds = (logs.logs || [])
-        .filter(l => l.source === 'strava' && !l.is_public)
-        .slice(0, count)
-        .map(l => l.id)
-      if (recentIds.length) {
-        await Promise.all(recentIds.map(id =>
+    // 2. 如果設定公開，用後端直接 batch update（不受分頁限制）
+    if (prefs.value.sync_public && count > 0) {
+      // 取所有 strava 來源的私人記錄，不限頁數
+      let allStrava = []
+      let pg = 1
+      while (true) {
+        const { data: pg_data } = await api.get('/me/training', {
+          params: { page: pg, page_size: 200 }
+        })
+        const strava_private = (pg_data.logs || [])
+          .filter(l => l.source === 'strava' && !l.is_public)
+          .map(l => l.id)
+        allStrava = allStrava.concat(strava_private)
+        if (!pg_data.logs || pg_data.logs.length < 200 || pg >= pg_data.pages) break
+        pg++
+      }
+      if (allStrava.length) {
+        await Promise.all(allStrava.map(id =>
           api.patch(`/training/${id}/public`, { is_public: true })
         ))
       }
-      syncResult.value = { ok: true, count, public: recentIds.length }
+      syncResult.value = { ok: true, count, public: allStrava.length }
     } else {
       syncResult.value = { ok: true, count }
     }
@@ -336,4 +315,12 @@ onMounted(() => {
 .pub-toggle { padding:.3rem .85rem; border-radius:4px; border:1px solid var(--color-border); font-size:.8rem; font-weight:600; cursor:pointer; background:var(--color-bg-card,#fff); color:var(--color-gray-2); transition:all .15s; }
 .pub-toggle.public { border-color:rgba(34,197,94,.5); color:#22c55e; background:rgba(34,197,94,.06); }
 .pub-toggle:not(.public) { border-color:var(--color-border); }
+.pref-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.4rem 0; border-bottom:1px solid var(--color-border,#E0E3DA); }
+.pref-row:last-of-type { border-bottom:none; }
+.pref-label { font-size:.82rem; color:var(--color-gray-1,#566270); }
+.pref-toggle { padding:.28rem .85rem; border-radius:20px; border:1px solid var(--color-border,#E0E3DA); font-size:.78rem; font-weight:600; cursor:pointer; background:var(--color-bg-card,#fff); color:var(--color-gray-2,#8A9099); transition:all .15s; }
+.pref-toggle.on { border-color:rgba(34,197,94,.5); color:#22c55e; background:rgba(34,197,94,.06); }
+.pref-toggle.public { border-color:rgba(34,197,94,.5); color:#22c55e; background:rgba(34,197,94,.06); }
+.pref-hint { font-size:.75rem; color:var(--color-gray-2); background:rgba(34,197,94,.06); border:1px solid rgba(34,197,94,.2); border-radius:4px; padding:.4rem .75rem; }
+.sync-btns { display:flex; gap:.5rem; margin-top:.25rem; }
 </style>

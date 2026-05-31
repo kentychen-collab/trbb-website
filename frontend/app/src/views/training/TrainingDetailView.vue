@@ -16,7 +16,7 @@
           <h1 class="hero-title">{{ log.title }}</h1>
           <div class="hero-meta">
             <span>👤 {{ log.display_name || log.username }}</span>
-            <span>📅 {{ log.date }}</span>
+            <span>📅 {{ log.created_at ? fmtDateTime(log.created_at) : fmtDate(log.date) }}</span>
             <span v-if="log.source !== 'manual'">📡 {{ sourceLabel(log.source) }}</span>
           </div>
         </div>
@@ -53,6 +53,21 @@
           <div class="stat-item" v-if="log.calories">
             <span class="stat-val">{{ log.calories }}</span>
             <span class="stat-unit">kcal</span>
+          </div>
+          <div class="stat-div" v-if="log.max_heart_rate"></div>
+          <div class="stat-item" v-if="log.max_heart_rate">
+            <span class="stat-val">{{ log.max_heart_rate }}</span>
+            <span class="stat-unit">bpm 最高心率</span>
+          </div>
+          <div class="stat-div" v-if="log.descent_m"></div>
+          <div class="stat-item" v-if="log.descent_m">
+            <span class="stat-val">▼ {{ log.descent_m }}</span>
+            <span class="stat-unit">m 下降</span>
+          </div>
+          <div class="stat-div" v-if="log.avg_speed_kph"></div>
+          <div class="stat-item" v-if="log.avg_speed_kph">
+            <span class="stat-val">{{ Number(log.avg_speed_kph).toFixed(1) }}</span>
+            <span class="stat-unit">km/h 均速</span>
           </div>
         </div>
 
@@ -107,6 +122,7 @@ import { useRoute, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
 import TrainingMap from '@/components/TrainingMap.vue'
+import { fmtDate, fmtDateTime } from '@/utils/time'
 
 const route  = useRoute()
 const auth   = useAuthStore()

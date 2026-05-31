@@ -30,7 +30,7 @@
           <div class="log-body">
             <div class="log-meta">
               <span class="log-author">{{ log.display_name || log.username }}</span>
-              <span class="log-date text-gray">{{ log.date }}</span>
+              <span class="log-date text-gray">{{ log.created_at ? fmtDateTime(log.created_at) : fmtDate(log.date) }}</span>
             </div>
             <h3 class="log-title">{{ log.title }}</h3>
             <div class="log-stats">
@@ -57,6 +57,7 @@ import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/services/api'
+import { fmtDate, fmtDateTime } from '@/utils/time'
 
 const auth = useAuthStore()
 const logs = ref([])

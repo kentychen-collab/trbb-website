@@ -78,9 +78,11 @@ func RegisterRoutes(r *gin.RouterGroup, db *database.DB, rdb *cache.Cache,
 			me.DELETE("/garmin/disconnect",   trainingH.GarminDisconnect)
 
 			// Strava
-			me.GET("/strava/status",          trainingH.StravaStatus)
-			me.GET("/strava/connect",         trainingH.StravaConnect)
-			me.DELETE("/strava/disconnect",   trainingH.StravaDisconnect)
+			me.GET("/strava/status",              trainingH.StravaStatus)
+			me.GET("/strava/connect",             trainingH.StravaConnect)
+			me.DELETE("/strava/disconnect",       trainingH.StravaDisconnect)
+			me.PATCH("/strava/sync_prefs",        trainingH.UpdateStravaSyncPrefs)
+			me.PATCH("/garmin/sync_prefs",        trainingH.UpdateGarminSyncPrefs)
 		}
 
 		// 賽事
