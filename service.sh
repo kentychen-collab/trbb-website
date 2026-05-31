@@ -402,7 +402,73 @@ cmd_rm() {
   log_warn "資料已清除。若要重新啟動請執行: ./service.sh init"
 }
 
-# ── help ──────────────────────────────────────────────────────
+# ── strava-webhook ────────────────────────────────────────────
+cmd_strava_webhook() {
+  local action="${1:-subscribe}"
+  check_env
+
+  local client_id;     client_id=$(grep STRAVA_CLIENT_ID     backend/.env | cut -d= -f2)
+  local client_secret; client_secret=$(grep STRAVA_CLIENT_SECRET backend/.env | cut -d= -f2)
+  local verify_token;  verify_token=$(grep STRAVA_WEBHOOK_VERIFY_TOKEN backend/.env 2>/dev/null | cut -d= -f2)
+  local callback_url;  callback_url=$(grep STRAVA_REDIRECT_URI backend/.env | cut -d= -f2 | sed 's|/strava/callback|/strava/webhook|')
+
+  if [ -z "$verify_token" ]; then
+    verify_token="trbb_strava_webhook_2024"
+  fi
+
+  if [ -z "$client_id" ] || [ -z "$client_secret" ]; then
+    log_error "STRAVA_CLIENT_ID / STRAVA_CLIENT_SECRET 未設定，請先填入 backend/.env"
+    exit 1
+  fi
+
+  case "$action" in
+    subscribe)
+      log_section "Strava Webhook — 訂閱"
+      log_info "Callback URL : $callback_url"
+      log_info "Verify Token : $verify_token"
+      echo ""
+      curl -s -X POST https://www.strava.com/api/v3/push_subscriptions \
+        -F "client_id=$client_id" \
+        -F "client_secret=$client_secret" \
+        -F "callback_url=$callback_url" \
+        -F "verify_token=$verify_token" | python3 -m json.tool 2>/dev/null || echo "(raw response above)"
+      echo ""
+      log_info "若看到 {\"id\": ...} 表示訂閱成功，Strava 將自動推送活動事件。"
+      ;;
+
+    list)
+      log_section "Strava Webhook — 查詢現有訂閱"
+      curl -s -G https://www.strava.com/api/v3/push_subscriptions \
+        -d "client_id=$client_id" \
+        -d "client_secret=$client_secret" | python3 -m json.tool 2>/dev/null
+      ;;
+
+    delete)
+      local sub_id="$2"
+      if [ -z "$sub_id" ]; then
+        log_error "請提供 subscription_id，用法：./service.sh strava-webhook delete <id>"
+        exit 1
+      fi
+      log_section "Strava Webhook — 刪除訂閱 $sub_id"
+      curl -s -X DELETE "https://www.strava.com/api/v3/push_subscriptions/$sub_id" \
+        -F "client_id=$client_id" \
+        -F "client_secret=$client_secret"
+      echo ""
+      log_info "訂閱 $sub_id 已刪除。"
+      ;;
+
+    *)
+      log_error "未知動作：$action"
+      echo "用法："
+      echo "  ./service.sh strava-webhook subscribe   # 建立訂閱"
+      echo "  ./service.sh strava-webhook list        # 查詢訂閱"
+      echo "  ./service.sh strava-webhook delete <id> # 刪除訂閱"
+      exit 1
+      ;;
+  esac
+}
+
+
 cmd_help() {
   echo -e "${BOLD}TRBB Service Manager${RESET}"
   echo ""
@@ -422,6 +488,7 @@ cmd_help() {
   echo -e "  ${GREEN}migrate${RESET}                     Apply all SQL migrations"
   echo -e "  ${GREEN}fix-admin${RESET}                   Reset super admin password"
   echo -e "  ${GREEN}db [file.sql]${RESET}               MySQL shell or run SQL file"
+  echo -e "  ${GREEN}strava-webhook${RESET} [subscribe|list|delete <id>]  Manage Strava Webhook"
   echo -e "  ${RED}rm${RESET}                          ${RED}Remove ALL containers + data (irreversible)${RESET}"
   echo ""
   echo -e "${BOLD}Services:${RESET} mysql, redis, minio, backend, nginx"
@@ -459,6 +526,7 @@ case "$COMMAND" in
   migrate)        cmd_migrate       ;;
   fix-admin)      cmd_fix_admin     ;;
   db)             cmd_db            "$@" ;;
+  strava-webhook) shift; cmd_strava_webhook "$@" ;;
   rm)             cmd_rm            ;;
   help|--help|-h) cmd_help          ;;
   *)
