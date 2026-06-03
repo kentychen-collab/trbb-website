@@ -1,13 +1,532 @@
 <template>
   <div class="home">
-    <!-- ── Navbar ─────────────────────────────────────── -->
+    <!-- ââ Navbar âââââââââââââââââââââââââââââââââââââââ -->
 
     <!-- ── Hero ──────────────────────────────────────── -->
     <section class="hero">
-      <div class="hero-bg">
-        <div class="hero-grid"></div>
-        <div class="hero-glow"></div>
+      <!-- 全螢幕背景輪播 -->
+      <div class="hero-slides">
+        <div
+          v-for="(slide, idx) in heroBanners"
+          :key="idx"
+          class="hero-slide"
+          :class="{ active: idx === heroSlideIndex }"
+          :style="{ backgroundImage: 'url(' + slide.image + ')' }"
+        ></div>
+        <div class="hero-overlay"></div>
       </div>
+
+      <!-- 內容層 -->
+      <div class="hero-inner">
+        <!-- 左側文字 -->
+        <div class="hero-left">
+          <div class="hero-tag">TRBB 鐵人社 {{ new Date().getFullYear() }}</div>
+          <h1 class="hero-title">{{ site.get('hero_title_1') || '唤醒潛能' }}<br>{{ site.get('hero_title_2') || '挑戰自我' }}</h1>
+          <p class="hero-desc">{{ site.get('hero_desc') || '加入台灣最活躍的鐵人三項社群，與 300+ 社員共同突破極限。' }}</p>
+          <div class="hero-cta">
+            <RouterLink to="/events" class="btn btn-primary btn-lg">探索功能</RouterLink>
+            <RouterLink to="/shop" class="btn btn-ghost-white btn-lg">官方商城</RouterLink>
+          </div>
+        </div>
+
+        <!-- 右側 TRBB Logo + 統計卡 -->
+        <div class="hero-right">
+          <div class="hero-logo-block">
+            <img v-if="site.get('logo_image')" :src="site.get('logo_image')" class="hero-logo-img" alt="TRBB" />
+            <div v-else class="hero-logo-text"><span class="hl-tr">TR</span><span class="hl-bb">BB</span></div>
+          </div>
+          <div class="hero-stats-card">
+            <div class="hsc-title">社員數據</div>
+            <div class="hsc-row">
+              <span class="hsc-num">{{ site.get('stat_members') || '300+' }}</span>
+              <span class="hsc-label">活躍社員</span>
+            </div>
+            <div class="hsc-row">
+              <span class="hsc-num">{{ site.get('stat_events') || '120+' }}</span>
+              <span class="hsc-label">年度賽事</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 輪播控制 -->
+      <button class="hero-prev" @click="prevSlide" v-if="heroBanners.length > 1">&#8592;</button>
+      <button class="hero-next" @click="nextSlide" v-if="heroBanners.length > 1">&#8594;</button>
+      <div class="hero-dots" v-if="heroBanners.length > 1">
+        <span
+          v-for="(_, i) in heroBanners"
+          :key="i"
+          class="hero-dot"
+          :class="{ active: i === heroSlideIndex }"
+          @click="heroSlideIndex = i"
+        ></span>
+      </div>
+    </section>
+
+        <!-- ââ Latest Eventsï¼API è¼å¥ï¼ ââââââââââââââââââââ -->
+    <section class="latest-events">
+      <div class="container">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="section-title">ææ°è³½äº</h2>
+          <RouterLink to="/events" class="btn btn-ghost">æ¥çå¨é¨</RouterLink>
+        </div>
+
+        <!-- Loading -->
+        <div v-if="eventsLoading" class="events-loading">
+          <div class="loading-spinner"></div>
+          <span>è¼å¥è³½äºä¸­...</span>
+        </div>
+
+        <!-- Empty -->
+        <div v-else-if="!latestEvents.length" class="events-empty">
+          <p>ç®åæ²æå¬éè³½äºï¼æ¬è«æå¾ã</p>
+        </div>
+
+        <!-- Cards -->
+        <div v-else class="events-grid">
+          <RouterLink v-for="ev in latestEvents" :key="ev.id"
+            :to="`/events/${ev.id}`" class="event-card card">
+            <div class="event-cover" :class="!ev.cover_url ? 'event-cover-placeholder' : ''"
+              :style="ev.cover_url ? `background-image:url(${ev.cover_url})` : ''">
+              <span v-if="!ev.cover_url" class="event-cover-icon">{{ eventTypeIcon(ev.event_type) }}</span>
+              <span class="event-type-badge">{{ eventTypeLabel(ev.event_type) }}</span>
+            </div>
+            <div class="event-body">
+              <div class="event-date text-red text-sm uppercase">
+                {{ formatDate(ev.start_at) }}
+              </div>
+              <h3 class="event-title">{{ ev.title }}</h3>
+              <div class="event-meta text-gray text-sm">
+                <span>ð {{ ev.location }}</span>
+                <span v-if="ev.fee > 0">ð° NT$ {{ Number(ev.fee).toLocaleString() }}</span>
+                <span v-else>ð° åè²»</span>
+              </div>
+              <div class="event-reg-status" :class="regStatusClass(ev)">
+                {{ regStatusText(ev) }}
+              </div>
+              <div class="btn btn-primary mt-2" style="width:100%;text-align:center">
+                {{ isRegOpen(ev) ? 'ç«å³å ±å' : 'æ¥çè©³æ' }}
+              </div>
+            </div>
+          </RouterLink>
+        </div>
+      </div>
+    </section>
+
+    <!-- ââ Latest Products ââââââââââââââââââââââââââââââ -->
+    <section class="latest-products">
+      <div class="container">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="section-title">è¿æåå</h2>
+          <RouterLink to="/shop" class="btn btn-ghost">æ¥çå¨é¨</RouterLink>
+        </div>
+        <div v-if="productsLoading" class="loading-box"><div class="loading-spinner"></div></div>
+        <div v-else-if="!latestProducts.length" class="empty-box"><p>ç®åç¡åå</p></div>
+        <div v-else class="products-mini-grid">
+          <RouterLink v-for="p in latestProducts" :key="p.id"
+            :to="`/shop/${p.id}`" class="product-mini-card card">
+            <div class="pmc-img">
+              <img v-if="p.images && p.images.length" :src="imgUrl(p.images[0])" :alt="p.title" />
+              <span v-else class="pmc-placeholder">ð</span>
+            </div>
+            <div class="pmc-body">
+              <div class="pmc-title">{{ p.title }}</div>
+              <div class="pmc-price">NT$ {{ Number(p.price).toLocaleString() }}</div>
+            </div>
+          </RouterLink>
+        </div>
+      </div>
+    </section>
+    <!-- ââ Public Training Feed âââââââââââââââââââââââ -->
+    <section class="training-feed">
+      <div class="container">
+        <div class="flex justify-between items-center mb-2">
+          <h2 class="section-title">æå¡è¨ç·´åæ</h2>
+          <RouterLink to="/training" class="btn btn-ghost">æ¥çå¨é¨</RouterLink>
+        </div>
+
+        <div v-if="trainingLoading" class="events-loading">
+          <div class="loading-spinner"></div>
+        </div>
+        <div v-else-if="!trainingLogs.length" class="events-empty">
+          <p>ç®åæ²æå¬éçè¨ç·´è¨é</p>
+        </div>
+        <div v-else class="training-grid">
+          <RouterLink v-for="log in trainingLogs" :key="log.id"
+            :to="`/training/${log.id}`" class="training-card card">
+            <!-- å°é¢ç§ç > è·¯ç·å > éååç¤º -->
+            <div class="training-cover" :class="`sport-${log.sport_type}`">
+              <img v-if="log.photos && log.photos.length"
+                :src="imgUrl(log.photos[0])" :alt="log.title" class="cover-img" />
+              <img v-else-if="log.map_thumbnail_url || log.cover_url"
+                :src="log.map_thumbnail_url || log.cover_url" :alt="log.title" class="cover-img" />
+              <div v-else class="cover-icon">{{ sportIcon(log.sport_type) }}</div>
+              <span class="sport-badge">{{ sportLabel(log.sport_type) }}</span>
+            </div>
+            <div class="training-body">
+              <div class="training-meta text-gray text-sm">
+                <span>{{ log.display_name || log.username }}</span>
+                <span>{{ fmtDateTime(log.created_at) || fmtDate(log.date) }}</span>
+              </div>
+              <h3 class="training-title">{{ log.title }}</h3>
+              <div class="training-stats">
+                <span v-if="log.distance_km">ð {{ Number(log.distance_km).toFixed(2) }} km</span>
+                <span v-if="log.duration_min">â± {{ fmtDuration(log.duration_min) }}</span>
+                <span v-if="log.avg_pace">ð {{ log.avg_pace }}/km</span>
+                <span v-if="log.avg_heart_rate">â¤ï¸ {{ log.avg_heart_rate }} bpm</span>
+                <span v-if="log.elevation_m">â² {{ log.elevation_m }}m</span>
+                <span v-if="log.calories">ð¥ {{ log.calories }} kcal</span>
+              </div>
+              <div v-if="log.source && log.source !== 'manual'" class="training-source">
+                {{ { strava:'Strava', garmin:'Garmin', gpx:'GPX', fit:'FIT' }[log.source] || log.source }}
+              </div>
+            </div>
+          </RouterLink>
+        </div>
+      </div>
+    </section>
+    <!-- ââ Features ââââââââââââââââââââââââââââââââââââ -->
+    <section class="features">
+      <div class="container">
+        <h2 class="section-title text-center">ç¤¾åæå</h2>
+        <div class="features-grid">
+          <div class="feature-card card" v-for="f in features" :key="f.title">
+            <div class="feature-icon">{{ f.icon }}</div>
+            <h3>{{ f.title }}</h3>
+            <p>{{ f.desc }}</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <!-- ââ Garmin Banner âââââââââââââââââââââââââââââââ -->
+    <section class="garmin-banner">
+      <div class="container garmin-inner">
+        <div class="garmin-text">
+          <h2>ä¸²æ¥ Garmin Connect</h2>
+          <p>èªååæ­¥è¨ç·´æ¸æï¼è¨éæ¯ä¸æ¬¡æ¸¸æ³³ãé¨è»ãè·æ­¥çé²æ­¥è»è·¡ã</p>
+          <RouterLink to="/me/garmin" class="btn btn-primary">ç«å³é£çµ</RouterLink>
+        </div>
+        <div class="garmin-visual">
+          <div class="garmin-ring">
+            <div class="ring swim">æ¸¸</div>
+            <div class="ring bike">é¨</div>
+            <div class="ring run">è·</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ââ Footer ââââââââââââââââââââââââââââââââââââââ -->
+    <footer class="footer">
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <span class="trbb-logo footer-logo"><span class="tr">TR</span><span class="bb">BB</span></span>
+          <p>éµäººä¸é éåç¤¾å</p>
+          <p class="text-gray text-sm">Â© 2025 TRBB. All rights reserved.</p>
+        </div>
+        <div class="footer-links">
+          <div class="footer-col">
+            <h4>ç¤¾å</h4>
+            <ul>
+              <li><RouterLink to="/events">è³½äºå ±å</RouterLink></li>
+              <li><RouterLink to="/shop">ååè²©å®</RouterLink></li>
+              <li><RouterLink to="/secondhand">äºæäº¤æ</RouterLink></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>æå¡</h4>
+            <ul>
+              <li><RouterLink to="/register">å å¥æå¡</RouterLink></li>
+              <li><RouterLink to="/me/training">è¨ç·´æ¥è¨</RouterLink></li>
+              <li><RouterLink to="/me/garmin">Garmin ä¸²æ¥</RouterLink></li>
+            </ul>
+          </div>
+          <div class="footer-col">
+            <h4>è¯çµ¡</h4>
+            <ul>
+              <li><a href="mailto:info@trbbtw.com">info@trbbtw.com</a></li>
+              <li><a href="#">Facebook</a></li>
+              <li><a href="#">Instagram</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { fmtDate, fmtTime, fmtDateTime, fmtRelative } from '@/utils/time'
+import { RouterLink } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import { useSiteSettingsStore } from '@/stores/siteSettings'
+import api from '@/services/api'
+
+const auth = useAuthStore()
+const site = useSiteSettingsStore()
+const heroSlideIndex = ref(0)
+const heroBanners = computed(() => {
+  const slides = []
+  if (site.get('banner_visible') === '1') {
+    if (site.get('banner_image')) slides.push({ image: site.get('banner_image'), link: site.get('banner_link') || '' })
+    if (site.get('banner_image_2')) slides.push({ image: site.get('banner_image_2'), link: '' })
+  }
+  if (!slides.length) slides.push({ image: '', link: '' })
+  return slides
+})
+let _heroTimer = null
+function startHeroTimer() {
+  stopHeroTimer()
+  if (heroBanners.value.length > 1) {
+    _heroTimer = setInterval(() => { heroSlideIndex.value = (heroSlideIndex.value + 1) % heroBanners.value.length }, 5000)
+  }
+}
+function stopHeroTimer() { if (_heroTimer) { clearInterval(_heroTimer); _heroTimer = null } }
+function nextSlide() { heroSlideIndex.value = (heroSlideIndex.value + 1) % heroBanners.value.length; startHeroTimer() }
+function prevSlide() { heroSlideIndex.value = (heroSlideIndex.value - 1 + heroBanners.value.length) % heroBanners.value.length; startHeroTimer() }
+const latestEvents  = ref([])
+const eventsLoading  = ref(true)
+const trainingLogs    = ref([])
+const trainingLoading  = ref(true)
+const latestProducts  = ref([])
+const productsLoading = ref(true)
+
+// è¼å¥ææ° 3 ç­å·²ç¼å¸è³½äº
+async function fetchLatestEvents() {
+  eventsLoading.value = true
+  try {
+    const { data } = await api.get('/events', { params: { page: 1, page_size: 3 } })
+    latestEvents.value = data.events || []
+  } catch(e) {
+    console.error('fetchLatestEvents error', e)
+    latestEvents.value = []
+  } finally {
+    eventsLoading.value = false
+  }
+}
+
+async function fetchProducts() {
+  productsLoading.value = true
+  try {
+    const { data } = await api.get('/products', { params: { page: 1, page_size: 4 } })
+    latestProducts.value = data.products || []
+  } catch(e) {
+    console.error('fetchProducts error', e)
+  } finally {
+    productsLoading.value = false
+  }
+}
+
+async function fetchTrainingLogs() {
+  trainingLoading.value = true
+  try {
+    const { data } = await api.get('/training', { params: { page: 1, page_size: 6 } })
+    trainingLogs.value = data.logs || []
+  } catch(e) {
+    console.error('fetchTrainingLogs error', e)
+    trainingLogs.value = []
+  } finally {
+    trainingLoading.value = false
+  }
+}
+
+// ââ Helpers âââââââââââââââââââââââââââââââââââââââââââââââ
+const typeMap  = { 1:'éµäººä¸é ', 2:'è·¯è·', 3:'æ¸¸æ³³', 4:'å®è»', 5:'è¨ç·´', 6:'å¶ä»' }
+const typeIcon = { 1:'ð', 2:'ð', 3:'ð', 4:'ð´', 5:'ðª', 6:'ð' }
+function eventTypeLabel(t) { return typeMap[t] || 'å¶ä»' }
+function eventTypeIcon(t)  { return typeIcon[t] || 'ð' }
+
+function formatDate(d) {
+  return new Date(d).toLocaleDateString('zh-TW', { year:'numeric', month:'2-digit', day:'2-digit' })
+}
+
+function imgUrl(path) {
+  const base = import.meta.env.VITE_IMAGE_BASE_URL || ''
+  if (!path) return ''
+  if (path.startsWith('http')) return path
+  return `${base}/images/${path}`
+}
+function sportIcon(t) { return { 1:'ð', 2:'ð', 3:'ð´', 4:'ð', 5:'ðª', 6:'ðï¸' }[t] || 'ð' }
+function sportLabel(t) { return { 1:'è·¯è·', 2:'æ¸¸æ³³', 3:'å®è»', 4:'éµäºº', 5:'éè¨', 6:'å¶ä»' }[t] || 'å¶ä»' }
+function fmtDuration(min) {
+  if (!min) return ''
+  const h = Math.floor(min / 60), m = min % 60
+  return h > 0 ? `${h}h ${m}m` : `${m}m`
+}
+
+function isRegOpen(ev) {
+  const now = new Date()
+  return now >= new Date(ev.reg_start_at) && now <= new Date(ev.reg_end_at)
+}
+
+function regStatusClass(ev) {
+  const now = new Date()
+  if (now < new Date(ev.reg_start_at)) return 'reg-upcoming'
+  if (now > new Date(ev.reg_end_at))   return 'reg-closed'
+  if (ev.max_participants && ev.registered_count >= ev.max_participants) return 'reg-full'
+  return 'reg-open'
+}
+
+function regStatusText(ev) {
+  const cls = regStatusClass(ev)
+  return { 'reg-open':'ð¢ å ±åä¸­', 'reg-upcoming':'ð¡ å³å°éæ¾', 'reg-closed':'ð´ å·²æªæ­¢', 'reg-full':'ð´ é¡æ»¿' }[cls]
+}
+
+const features = [
+  { icon: 'ð', title: 'è³½äºå ±å', desc: 'éµäººä¸é ãè·¯è·ãæ¸¸æ³³ãå®è»å¨ç³»åè³½äºä¸ç«å¼å ±åï¼æ¯æ´åäººååé«ã' },
+  { icon: 'ð', title: 'è£ååå', desc: 'å®æ¹èªè­è£åãè¨ç·´è£çµ¦ï¼æå¡äº«å°å±¬ææ£ï¼å°è²¨å¿«éå®å¿ã' },
+  { icon: 'ð', title: 'äºæäº¤æ', desc: 'è®å¥½è£åæµè½ï¼ä»¥åçå¹æ ¼æ¾å°éè¦çäººï¼æ¸å°æµªè²»ã' },
+  { icon: 'ð', title: 'è¨ç·´æ¥è¨', desc: 'è¨éæ¯æ¥è¨ç·´ï¼ä¸²æ¥ Garmin èªååæ­¥ï¼åæé²æ­¥æ²ç·ã' },
+  { icon: 'ð', title: 'è³½äºäº¤é', desc: 'åé«åè»æåï¼å¾éåé»ç´éè³½å ´ï¼è¼é¬ç¡å£åã' },
+  { icon: 'ð', title: 'æå¡å¶åº¦', desc: 'åç´æå¡ç³»çµ±ï¼è§£éå°å±¬è¨ç·´è¨ç«ãææ£ååªåå ±åè³æ ¼ã' },
+]
+
+onMounted(() => {
+  startHeroTimer() fetchLatestEvents(); fetchTrainingLogs(); fetchProducts() })
+onUnmounted(stopHeroTimer)
+</script>
+
+<style scoped>
+/* ââ Navbar ââââââââââââââââââââââââââââââââââââââââââââââââ */
+
+/* ââ Hero ââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ── Hero Fullscreen Carousel ───────────────────── */
+.hero { position: relative; min-height: 100vh; display: flex; align-items: center; padding-top: 64px; overflow: hidden; }
+.hero-slides { position: absolute; inset: 0; }
+.hero-slide { position: absolute; inset: 0; background-size: cover; background-position: center; opacity: 0; transition: opacity 0.8s ease; }
+.hero-slide.active { opacity: 1; }
+.hero-overlay { position: absolute; inset: 0; background: linear-gradient(to right, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.3) 55%, rgba(0,0,0,0.1) 100%); }
+.hero-inner { position: relative; z-index: 2; width: 100%; max-width: 1280px; margin: 0 auto; padding: 0 2rem; display: flex; justify-content: space-between; align-items: center; gap: 2rem; }
+.hero-left { flex: 1; max-width: 560px; }
+.hero-tag { font-size: 0.8rem; font-weight: 700; letter-spacing: 0.15em; color: var(--color-primary); text-transform: uppercase; margin-bottom: 0.75rem; }
+.hero-title { font-size: clamp(2.5rem, 5vw, 4rem); font-weight: 900; line-height: 1.15; color: #fff; margin-bottom: 1rem; }
+.hero-desc { font-size: 1rem; color: rgba(255,255,255,0.85); line-height: 1.7; margin-bottom: 1.75rem; }
+.hero-cta { display: flex; gap: 1rem; flex-wrap: wrap; }
+.btn-ghost-white { border: 2px solid rgba(255,255,255,0.7); color: #fff; background: transparent; }
+.btn-ghost-white:hover { background: rgba(255,255,255,0.15); }
+.hero-right { display: flex; flex-direction: column; align-items: center; gap: 1.25rem; }
+.hero-logo-block { text-align: center; }
+.hero-logo-img { max-height: 140px; max-width: 220px; object-fit: contain; filter: drop-shadow(0 0 20px rgba(0,0,0,0.5)); }
+.hero-logo-text { font-family: var(--font-cond); font-size: 5rem; font-weight: 900; line-height: 1; }
+.hl-tr { color: #E5191A; }
+.hl-bb { color: #fff; }
+.hero-stats-card { background: rgba(255,255,255,0.95); border-radius: 16px; padding: 1.25rem 1.75rem; min-width: 200px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+.hsc-title { font-size: 0.75rem; font-weight: 700; color: #888; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+.hsc-row { display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.5rem; }
+.hsc-num { font-size: 2rem; font-weight: 900; color: var(--color-primary); }
+.hsc-label { font-size: 0.85rem; color: #555; }
+.hero-prev, .hero-next { position: absolute; top: 50%; z-index: 3; transform: translateY(-50%); background: rgba(255,255,255,0.15); border: none; color: #fff; font-size: 1.5rem; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+.hero-prev:hover, .hero-next:hover { background: rgba(255,255,255,0.3); }
+.hero-prev { left: 1.5rem; }
+.hero-next { right: 1.5rem; }
+.hero-dots { position: absolute; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 3; display: flex; gap: 8px; }
+.hero-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.4); cursor: pointer; transition: background 0.2s; }
+.hero-dot.active { background: var(--color-primary); width: 24px; border-radius: 4px; }
+@media (max-width: 768px) { .hero-right { display: none; } .hero-title { font-size: 2.5rem; } }
+.anniversary-banner { margin-bottom: 1.5rem; }
+.anniversary-img {
+  max-height: 120px; width: auto;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.5));
+}
+.banner-caption { font-size:.85rem; color:rgba(255,255,255,.8); margin-top:.35rem; }
+
+/* ââ Features ââââââââââââââââââââââââââââââââââââââââââââââ */
+.features { padding: 6rem 0; background: var(--color-bg-2); }
+.text-center { text-align: center; }
+.section-title.text-center::after { left: 50%; transform: translateX(-50%); }
+.features-grid { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.feature-card { padding: 2rem; }
+.feature-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+.feature-card h3 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+.feature-card p { color: var(--color-gray-2); font-size: 0.9rem; line-height: 1.7; }
+
+/* ââ Latest Events âââââââââââââââââââââââââââââââââââââââââ */
+.latest-events { padding: 6rem 0; }
+.events-loading { display: flex; align-items: center; justify-content: center; gap: 1rem; padding: 3rem; color: var(--color-gray-2); }
+.loading-spinner { width: 24px; height: 24px; border: 2px solid var(--color-border); border-top-color: var(--color-primary); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg) } }
+.events-empty { text-align: center; padding: 3rem; color: var(--color-gray-2); }
+.events-grid { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+
+.event-card { background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; transition: all .2s; display: block; }
+.event-card:hover { border-color: var(--color-primary); transform: translateY(-3px); box-shadow: 0 8px 30px rgba(229,25,26,.15); }
+
+.event-cover { height: 160px; display: flex; align-items: flex-end; padding: 0.75rem; position: relative; background-size: cover; background-position: center; }
+.event-cover-placeholder { background: linear-gradient(135deg, #1a1a2e, #16213e); }
+.event-cover-icon { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -60%); font-size: 3rem; }
+.event-type-badge { font-family: var(--font-cond); font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.2rem 0.65rem; background: rgba(229,25,26,0.85); color: #fff; border-radius: 3px; position: relative; z-index: 1; }
+
+.event-body { padding: 1.25rem; }
+.event-date { font-size: 0.78rem; margin-bottom: 0.25rem; }
+.event-title { font-size: 1rem; font-weight: 700; line-height: 1.4; margin-bottom: 0.5rem; }
+.event-meta { display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.82rem; margin-bottom: 0.5rem; }
+
+.event-reg-status { font-size: 0.78rem; font-weight: 600; }
+.reg-open     { color: #22c55e; }
+.reg-upcoming { color: #f59e0b; }
+.reg-closed   { color: #9ca3af; }
+.reg-full     { color: #ef4444; }
+
+/* ââ Garmin Banner âââââââââââââââââââââââââââââââââââââââââ */
+.garmin-banner { background: linear-gradient(135deg, #0d0d0d 0%, #1a0000 100%); border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); padding: 5rem 0; }
+.garmin-inner { display: flex; gap: 4rem; align-items: center; flex-wrap: wrap; }
+.garmin-text { flex: 1; min-width: 280px; }
+.garmin-text h2 { font-size: 2.2rem; margin-bottom: 1rem; }
+.garmin-text p { color: var(--color-gray-1); line-height: 1.8; margin-bottom: 2rem; }
+.garmin-visual { flex: 0 0 260px; display: flex; justify-content: center; }
+.garmin-ring { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.ring { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--color-primary); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 2rem; color: var(--color-primary); animation: pulse-red 3s infinite; }
+.ring.bike { animation-delay: 1s; }
+.ring.run  { animation-delay: 2s; grid-column: 1 / -1; justify-self: center; }
+@keyframes pulse-red { 0%,100% { box-shadow: 0 0 0 0 rgba(229,25,26,.4); } 50% { box-shadow: 0 0 0 8px rgba(229,25,26,0); } }
+
+/* ââ Footer ââââââââââââââââââââââââââââââââââââââââââââââââ */
+.footer { background: var(--color-bg-2); border-top: 1px solid var(--color-border); padding: 4rem 0 2rem; }
+.footer-inner { display: flex; gap: 4rem; flex-wrap: wrap; }
+.footer-brand { flex: 1; min-width: 200px; }
+.footer-logo { font-size: 2.5rem; }
+.footer-brand p { color: var(--color-gray-2); margin-top: 0.5rem; }
+.footer-links { display: flex; gap: 4rem; flex-wrap: wrap; }
+.footer-col h4 { font-family: var(--font-cond); font-size: 0.8rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--color-gray-2); margin-bottom: 1rem; }
+.footer-col ul { list-style: none; }
+.footer-col li { margin-bottom: 0.5rem; }
+.footer-col a { color: var(--color-gray-1); font-size: 0.9rem; }
+.footer-col a:hover { color: var(--color-primary); }
+.training-feed { padding:4rem 0; background:var(--color-bg-2); }
+/* Training grid */
+.training-grid { display:grid; gap:1.25rem; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); }
+.training-card { display:block; background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:8px; overflow:hidden; transition:all .2s; }
+.training-card:hover { border-color:var(--color-primary); transform:translateY(-3px); box-shadow:0 6px 24px rgba(229,25,26,.12); }
+.training-cover { height:140px; display:flex; align-items:center; justify-content:center; position:relative; }
+.sport-1 { background:linear-gradient(135deg,#1a1a2e,#2d1b4e); }
+.sport-2 { background:linear-gradient(135deg,#0a1628,#0e3460); }
+.sport-3 { background:linear-gradient(135deg,#1a1a1a,#2d2000); }
+.sport-4 { background:linear-gradient(135deg,#0d1a0d,#1a3a1a); }
+.sport-5, .sport-6 { background:linear-gradient(135deg,#1a0d0d,#3a1a1a); }
+.cover-img { width:100%; height:100%; object-fit:cover; position:absolute; inset:0; }
+.cover-icon { font-size:3rem; position:relative; z-index:1; }
+.sport-badge { position:absolute; bottom:.5rem; left:.5rem; font-family:var(--font-cond); font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; padding:.15rem .5rem; background:rgba(0,0,0,.6); border-radius:3px; color:#fff; }
+.training-body { padding:1rem; }
+.training-meta { display:flex; justify-content:space-between; margin-bottom:.35rem; }
+.training-title { font-size:.95rem; font-weight:700; line-height:1.4; margin-bottom:.4rem; }
+.training-stats { display:flex; gap:.75rem; flex-wrap:wrap; font-size:.78rem; color:var(--color-gray-2); }
+
+/* ââ Latest Products ââââââââââââââââââââââââââââââââââââââââ */
+.latest-products { padding:3.5rem 0; background:var(--color-bg-card); }
+.products-mini-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1.25rem; }
+.product-mini-card { display:block; background:var(--color-bg-card); border:1px solid var(--color-border); border-radius:8px; overflow:hidden; box-shadow:0 1px 4px rgba(86,98,112,.08); transition:all .2s; }
+.product-mini-card:hover { border-color:var(--color-primary); transform:translateY(-3px); box-shadow:0 4px 16px rgba(207,32,39,.12); }
+.pmc-img { height:160px; overflow:hidden; background:var(--color-bg-2); display:flex; align-items:center; justify-content:center; }
+.pmc-img img { width:100%; height:100%; object-fit:cover; }
+.pmc-placeholder { font-size:3rem; }
+.pmc-body { padding:.9rem 1rem; }
+.pmc-title { font-weight:700; font-size:.9rem; margin-bottom:.3rem; color:var(--color-text); }
+.pmc-price { font-family:var(--font-cond,'Barlow Condensed',sans-serif); font-size:1.1rem; font-weight:700; color:var(--color-primary); }
+
+.training-source { font-size:.7rem; color:var(--color-gray-2); margin-top:.3rem; }
+</style>
+
       <div class="container hero-content">
         <!-- Dynamic Banner from Site Settings -->
         <div v-if="site.get('banner_visible')=='1' && site.get('banner_image')" class="anniversary-banner">
